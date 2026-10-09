@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { getSupabaseClient } from '../../lib/supabase';
 import './Navbar.css';
 
@@ -8,8 +8,10 @@ function Navbar() {
   const [authLoaded, setAuthLoaded] = useState(false);
   const [user, setUser] = useState(null);
   const [avatarFailed, setAvatarFailed] = useState(false);
+  const location = useLocation();
 
   const closeMenu = () => setMenuOpen(false);
+  const returnTo = `${location.pathname}${location.search}${location.hash}`;
 
   useEffect(() => {
     let isMounted = true;
@@ -114,8 +116,8 @@ function Navbar() {
               </Link>
             ) : (
               <>
-                <Link className="nav-login" to="/login" onClick={closeMenu}>Log in</Link>
-                <Link className="button button-small" to="/register" onClick={closeMenu}>Register</Link>
+                <Link className="nav-login" to="/login" state={{ from: returnTo }} onClick={closeMenu}>Log in</Link>
+                <Link className="button button-small" to="/register" state={{ from: returnTo }} onClick={closeMenu}>Register</Link>
               </>
             ))}
           </div>

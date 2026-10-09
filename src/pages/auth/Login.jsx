@@ -1,18 +1,20 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import GoogleAuthButton from '../../components/common/GoogleAuthButton';
-import { startGoogleSignIn } from '../../utils/supabaseAuth';
+import { getSafeReturnTo, startGoogleSignIn } from '../../utils/supabaseAuth';
 import './Login.css';
 
 function Login() {
   const [authMessage, setAuthMessage] = useState('');
   const [authError, setAuthError] = useState(false);
+  const location = useLocation();
+  const returnTo = getSafeReturnTo(location.state?.from);
 
   const handleGoogleAuth = async () => {
     setAuthMessage('');
     setAuthError(false);
     try {
-      await startGoogleSignIn();
+      await startGoogleSignIn(undefined, returnTo);
     } catch (error) {
       setAuthMessage(error.message);
       setAuthError(true);
@@ -45,7 +47,7 @@ function Login() {
           {authMessage && <p className="auth-message" role={authError ? 'alert' : 'status'}>{authMessage}</p>}
 
           <p className="auth-switch">
-            Don’t have an account? <Link to="/register">Register</Link>
+            Don’t have an account? <Link to="/register" state={{ from: returnTo }}>Register</Link>
           </p>
         </div>
       </div>

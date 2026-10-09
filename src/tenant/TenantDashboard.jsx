@@ -366,7 +366,7 @@ function TenantDashboard() {
           <section className="tenant-profile-card tenant-feedback">
             <h2>Sign in to view your profile</h2>
             <p>Your profile details are available after you sign in with Google.</p>
-            <Link className="tenant-primary-link" to="/login">Go to login</Link>
+            <Link className="tenant-primary-link" to="/login" state={{ from: '/tenant/dashboard' }}>Go to login</Link>
           </section>
         )}
 
@@ -374,7 +374,7 @@ function TenantDashboard() {
           <section className="tenant-profile-card tenant-feedback">
             <h2>Profile not found</h2>
             <p>We couldn’t find a saved profile for this account. Try signing in again to sync your details.</p>
-            <Link className="tenant-primary-link" to="/login">Sign in again</Link>
+            <Link className="tenant-primary-link" to="/login" state={{ from: '/tenant/dashboard' }}>Sign in again</Link>
           </section>
         )}
 

@@ -1,14 +1,22 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { getSupabaseClient } from '../../lib/supabase';
 import { saveUserProfile } from '../../utils/authStorage';
-import { clearPendingAccountType, getPendingAccountType } from '../../utils/supabaseAuth';
+import {
+  clearPendingAccountType,
+  clearPendingReturnTo,
+  getPendingAccountType,
+  getPendingReturnTo,
+} from '../../utils/supabaseAuth';
 import { getProfileRecord } from '../../utils/supabaseProfile';
 import './Login.css';
 
 function AuthCallback() {
   const [message, setMessage] = useState('Finishing Google sign-in…');
   const [errorMessage, setErrorMessage] = useState('');
+  const [returnTo, setReturnTo] = useState('/');
+  const [isComplete, setIsComplete] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     let isMounted = true;
@@ -28,6 +36,7 @@ function AuthCallback() {
 
         const user = data.session.user;
         const profile = getProfileRecord(user);
+        const destination = getPendingReturnTo();
         const { error: saveError } = await supabase
           .from('users')
           .upsert(profile, { onConflict: 'email' });
@@ -39,12 +48,15 @@ function AuthCallback() {
         let cacheWarning = '';
         try {
           saveUserProfile(user, profile, getPendingAccountType());
-          clearPendingAccountType();
         } catch (storageError) {
           cacheWarning = ` Supabase saved your profile, but local profile caching failed: ${storageError.message}`;
         }
+        clearPendingAccountType();
+        clearPendingReturnTo();
 
         if (isMounted) {
+          setReturnTo(destination);
+          setIsComplete(true);
           setMessage(`Signed in as ${profile.email}. Your profile is saved.${cacheWarning}`);
         }
       } catch (error) {
@@ -61,7 +73,17 @@ function AuthCallback() {
     };
   }, []);
 
-  const hasSignedIn = message.startsWith('Signed in as');
+  useEffect(() => {
+    if (!isComplete) {
+      return undefined;
+    }
+
+    const redirectTimer = window.setTimeout(() => {
+      navigate(returnTo, { replace: true });
+    }, 2500);
+
+    return () => window.clearTimeout(redirectTimer);
+  }, [isComplete, navigate, returnTo]);
 
   return (
     <main className="auth-page">
@@ -70,11 +92,17 @@ function AuthCallback() {
         <p className={errorMessage ? 'auth-message' : 'auth-subtitle'} role={errorMessage ? 'alert' : 'status'}>
           {errorMessage || message}
         </p>
-        {(errorMessage || hasSignedIn) && (
+        {(errorMessage || isComplete) && (
           <p className="auth-switch">
-            <Link to="/tenant/dashboard">View your profile</Link>
-            {' · '}
-            <Link to="/">Continue to BashaBondhu</Link>
+            {isComplete ? (
+              <>
+                <Link to="/tenant/dashboard">View your profile</Link>
+                {' · '}
+                <Link to={returnTo}>Continue to previous page</Link>
+              </>
+            ) : (
+              <Link to="/login">Back to login</Link>
+            )}
           </p>
         )}
       </section>

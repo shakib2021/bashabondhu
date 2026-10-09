@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import GoogleAuthButton from '../../components/common/GoogleAuthButton';
-import { startGoogleSignIn } from '../../utils/supabaseAuth';
+import { getSafeReturnTo, startGoogleSignIn } from '../../utils/supabaseAuth';
 import './Register.css';
 
 function Register() {
   const [accountType, setAccountType] = useState('');
   const [authMessage, setAuthMessage] = useState('');
   const [authError, setAuthError] = useState(false);
+  const location = useLocation();
+  const returnTo = getSafeReturnTo(location.state?.from);
 
   const selectAccountType = (event) => {
     setAccountType(event.target.value);
@@ -19,7 +21,7 @@ function Register() {
     setAuthMessage('');
     setAuthError(false);
     try {
-      await startGoogleSignIn(accountType);
+      await startGoogleSignIn(accountType, returnTo);
     } catch (error) {
       setAuthMessage(error.message);
       setAuthError(true);
@@ -102,7 +104,7 @@ function Register() {
           {authMessage && <p className="auth-message" role={authError ? 'alert' : 'status'}>{authMessage}</p>}
 
           <p className="auth-switch">
-            Already have an account? <Link to="/login">Log in</Link>
+            Already have an account? <Link to="/login" state={{ from: returnTo }}>Log in</Link>
           </p>
         </div>
       </div>
