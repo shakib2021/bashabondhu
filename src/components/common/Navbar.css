@@ -87,6 +87,39 @@
   gap: 25px;
 }
 
+.nav-dashboard {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #34483e;
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+  transition: color 160ms ease;
+}
+
+.nav-dashboard:hover {
+  color: #1e7658;
+}
+
+.nav-avatar {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border: 2px solid #e4efe7;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.nav-avatar-fallback {
+  display: grid;
+  place-items: center;
+  background: #e8f4ec;
+  color: #267a59;
+  font-size: 12px;
+  font-weight: 750;
+}
+
 .button {
   display: inline-flex;
   align-items: center;
@@ -216,5 +249,10 @@
 
   .nav-actions .nav-login {
     padding: 12px 8px;
+  }
+
+  .nav-actions .nav-dashboard {
+    align-self: flex-start;
+    padding: 8px;
   }
 }

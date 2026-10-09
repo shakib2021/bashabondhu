@@ -1,0 +1,415 @@
+.tenant-dashboard {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f5f8f5;
+  color: #20392f;
+}
+
+.tenant-dashboard-header {
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 clamp(20px, 6vw, 88px);
+  border-bottom: 1px solid #e7ede8;
+  background: #fff;
+}
+
+.tenant-brand,
+.tenant-header-actions {
+  display: inline-flex;
+  align-items: center;
+}
+
+.tenant-brand {
+  gap: 10px;
+  color: #214c3b;
+  font-size: 18px;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.tenant-brand-mark {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: #e8f4ec;
+  color: #267a59;
+  font-size: 18px;
+}
+
+.tenant-header-actions {
+  gap: 20px;
+}
+
+.tenant-home-link,
+.tenant-signout-button {
+  color: #4e665b;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.tenant-signout-button {
+  padding: 9px 14px;
+  border: 1px solid #dce7df;
+  border-radius: 9px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.tenant-signout-button:hover,
+.tenant-home-link:hover {
+  color: #21704f;
+}
+
+.tenant-dashboard-content {
+  width: min(960px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 56px 0 72px;
+  flex: 1;
+}
+
+.tenant-welcome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 30px;
+}
+
+.tenant-eyebrow {
+  display: block;
+  color: #54816b;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+}
+
+.tenant-welcome h1 {
+  margin: 10px 0 8px;
+  color: #20392f;
+  font-size: clamp(30px, 5vw, 42px);
+  letter-spacing: -1.5px;
+}
+
+.tenant-welcome p {
+  margin: 0;
+  color: #708078;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.tenant-welcome-icon {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #d8e9dc;
+  border-radius: 18px;
+  background: #eaf5ec;
+  color: #2a815e;
+  font-size: 30px;
+}
+
+.tenant-profile-card {
+  padding: clamp(22px, 4vw, 34px);
+  border: 1px solid #e3ebe5;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 18px 45px rgba(33, 63, 47, 0.055);
+}
+
+.tenant-profile-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 23px;
+  border-bottom: 1px solid #edf1ee;
+}
+
+.tenant-profile-card-heading h2,
+.tenant-feedback h2 {
+  margin: 7px 0 0;
+  color: #294539;
+  font-size: 20px;
+  letter-spacing: -0.4px;
+}
+
+.tenant-edit-button,
+.tenant-cancel-button {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid #dce7df;
+  border-radius: 9px;
+  background: #fff;
+  color: #347255;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tenant-edit-button:hover,
+.tenant-cancel-button:hover:not(:disabled) {
+  border-color: #9fc5ad;
+  background: #f6faf6;
+}
+
+.tenant-profile-badge {
+  padding: 8px 11px;
+  border-radius: 999px;
+  background: #f0f7f1;
+  color: #43805e;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.tenant-profile-summary {
+  display: flex;
+  align-items: center;
+  gap: 17px;
+  padding: 26px 0;
+}
+
+.tenant-avatar {
+  width: 76px;
+  height: 76px;
+  flex: 0 0 76px;
+  border: 3px solid #eef5ef;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.tenant-avatar-fallback {
+  display: grid;
+  place-items: center;
+  background: #e7f2e9;
+  color: #327858;
+  font-size: 23px;
+  font-weight: 750;
+}
+
+.tenant-profile-name h3 {
+  margin: 0 0 6px;
+  color: #294539;
+  font-size: 18px;
+}
+
+.tenant-profile-name p {
+  margin: 0;
+  color: #74827a;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.tenant-profile-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.tenant-profile-field {
+  min-width: 0;
+  display: block;
+  padding: 16px;
+  border: 1px solid #e8eeea;
+  border-radius: 12px;
+  background: #fbfcfb;
+}
+
+.tenant-profile-field input,
+.tenant-profile-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #dce7df;
+  border-radius: 8px;
+  background: #fff;
+  color: #334d40;
+  font: inherit;
+  font-size: 13px;
+}
+
+.tenant-profile-field input {
+  min-height: 40px;
+  padding: 0 11px;
+}
+
+.tenant-profile-field textarea {
+  min-height: 82px;
+  padding: 10px 11px;
+  resize: vertical;
+}
+
+.tenant-profile-field input:focus,
+.tenant-profile-field textarea:focus {
+  outline: 3px solid rgba(43, 138, 104, 0.14);
+  border-color: #58a17b;
+}
+
+.tenant-profile-field input:read-only {
+  background: #f2f5f3;
+  color: #77847d;
+}
+
+.tenant-profile-field small {
+  display: block;
+  margin-top: 7px;
+  color: #87938c;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.tenant-profile-field-wide {
+  grid-column: 1 / -1;
+}
+
+.tenant-profile-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.tenant-cancel-button:disabled,
+.tenant-primary-link:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.tenant-form-message {
+  margin: 16px 0 0;
+  color: #287b59;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.tenant-form-message.is-error {
+  color: #a34232;
+}
+
+.tenant-profile-field span {
+  display: block;
+  margin-bottom: 8px;
+  color: #7b8981;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.tenant-profile-field strong {
+  display: block;
+  color: #334d40;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.tenant-profile-note {
+  margin: 20px 0 0;
+  color: #89958e;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.tenant-feedback {
+  padding-top: 34px;
+  padding-bottom: 34px;
+}
+
+.tenant-feedback p {
+  color: #718078;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.tenant-primary-link {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8px;
+  padding: 0 15px;
+  border: 0;
+  border-radius: 9px;
+  background: #287b59;
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.tenant-primary-link:hover {
+  background: #206748;
+}
+
+.tenant-loader {
+  width: 25px;
+  height: 25px;
+  display: block;
+  border: 3px solid #dcebe0;
+  border-top-color: #348261;
+  border-radius: 50%;
+  animation: tenant-spin 750ms linear infinite;
+}
+
+.tenant-dashboard-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px clamp(20px, 6vw, 88px);
+  border-top: 1px solid #e7ede8;
+  color: #87938c;
+  font-size: 11px;
+}
+
+@keyframes tenant-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 600px) {
+  .tenant-dashboard-header {
+    min-height: 66px;
+  }
+
+  .tenant-brand {
+    font-size: 16px;
+  }
+
+  .tenant-header-actions {
+    gap: 12px;
+  }
+
+  .tenant-dashboard-content {
+    padding-top: 38px;
+  }
+
+  .tenant-profile-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .tenant-profile-card-heading {
+    align-items: flex-start;
+  }
+
+  .tenant-profile-badge {
+    flex-shrink: 0;
+  }
+
+  .tenant-dashboard-footer {
+    flex-direction: column;
+    gap: 7px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tenant-loader {
+    animation-duration: 2s;
+  }
+}

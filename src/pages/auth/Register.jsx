@@ -1,15 +1,29 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import GoogleAuthButton from '../../components/common/GoogleAuthButton';
+import { startGoogleSignIn } from '../../utils/supabaseAuth';
 import './Register.css';
 
 function Register() {
   const [accountType, setAccountType] = useState('');
   const [authMessage, setAuthMessage] = useState('');
+  const [authError, setAuthError] = useState(false);
 
   const selectAccountType = (event) => {
     setAccountType(event.target.value);
     setAuthMessage('');
+    setAuthError(false);
+  };
+
+  const handleGoogleAuth = async () => {
+    setAuthMessage('');
+    setAuthError(false);
+    try {
+      await startGoogleSignIn(accountType);
+    } catch (error) {
+      setAuthMessage(error.message);
+      setAuthError(true);
+    }
   };
 
   return (
@@ -24,8 +38,7 @@ function Register() {
           </p>
 
           <div className="auth-visual-card">
-            <strong>Trusted matches</strong>
-            <div className="stat">98%</div>
+           
           </div>
         </div>
 
@@ -81,12 +94,12 @@ function Register() {
 
           <GoogleAuthButton
             disabled={!accountType}
-            onClick={() => setAuthMessage('Google sign-up is not connected yet. Configure Google OAuth to enable registration.')}
+            onClick={handleGoogleAuth}
           >
             Sign up with Google
           </GoogleAuthButton>
           {!accountType && <p className="account-type-hint">Choose an account type to continue.</p>}
-          {authMessage && <p className="auth-message" role="status">{authMessage}</p>}
+          {authMessage && <p className="auth-message" role={authError ? 'alert' : 'status'}>{authMessage}</p>}
 
           <p className="auth-switch">
             Already have an account? <Link to="/login">Log in</Link>

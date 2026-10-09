@@ -1,11 +1,64 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { getSupabaseClient } from '../../lib/supabase';
 import './Navbar.css';
 
 function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [authLoaded, setAuthLoaded] = useState(false);
+  const [user, setUser] = useState(null);
+  const [avatarFailed, setAvatarFailed] = useState(false);
 
   const closeMenu = () => setMenuOpen(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    let subscription;
+
+    try {
+      const supabase = getSupabaseClient();
+      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (isMounted) {
+          setUser(session?.user || null);
+          setAvatarFailed(false);
+          setAuthLoaded(true);
+        }
+      });
+      subscription = data.subscription;
+
+      supabase.auth.getSession()
+        .then(({ data: sessionData, error }) => {
+          if (error) {
+            throw error;
+          }
+          if (isMounted) {
+            setUser(sessionData.session?.user || null);
+            setAvatarFailed(false);
+            setAuthLoaded(true);
+          }
+        })
+        .catch(() => {
+          if (isMounted) {
+            setUser(null);
+            setAuthLoaded(true);
+          }
+        });
+    } catch {
+      setAuthLoaded(true);
+    }
+
+    return () => {
+      isMounted = false;
+      subscription?.unsubscribe();
+    };
+  }, []);
+
+  const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
+  const userName = user?.user_metadata?.full_name
+    || user?.user_metadata?.name
+    || user?.email
+    || 'Your account';
+  const initials = userName.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
 
   return (
     <header className="site-header">
@@ -45,8 +98,26 @@ function Navbar() {
             <Link className="nav-link" to="/#about" onClick={closeMenu}>About us</Link>
           </div>
           <div className="nav-actions">
-            <Link className="nav-login" to="/login" onClick={closeMenu}>Log in</Link>
-            <Link className="button button-small" to="/register" onClick={closeMenu}>Register</Link>
+            {authLoaded && (user ? (
+              <Link className="nav-dashboard" to="/tenant/dashboard" onClick={closeMenu} aria-label="Open your dashboard">
+                {avatarUrl && !avatarFailed ? (
+                  <img
+                    className="nav-avatar"
+                    src={avatarUrl}
+                    alt=""
+                    onError={() => setAvatarFailed(true)}
+                  />
+                ) : (
+                  <span className="nav-avatar nav-avatar-fallback" aria-hidden="true">{initials}</span>
+                )}
+                <span>Dashboard</span>
+              </Link>
+            ) : (
+              <>
+                <Link className="nav-login" to="/login" onClick={closeMenu}>Log in</Link>
+                <Link className="button button-small" to="/register" onClick={closeMenu}>Register</Link>
+              </>
+            ))}
           </div>
         </div>
       </nav>

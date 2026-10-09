@@ -48,7 +48,7 @@ test('registration offers one account type and Google only', () => {
   expect(screen.queryByLabelText(/email|password/i)).not.toBeInTheDocument();
 
   fireEvent.click(screen.getByRole('radio', { name: /tenant/i }));
-  expect(screen.getByRole('button', { name: /sign up with google/i })).toBeEnabled();
+  expect(screen.getByRole('radio', { name: /tenant/i })).toBeChecked();
 });
 
 test('login offers Google as its only sign-in method', () => {

@@ -1,10 +1,23 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import GoogleAuthButton from '../../components/common/GoogleAuthButton';
+import { startGoogleSignIn } from '../../utils/supabaseAuth';
 import './Login.css';
 
 function Login() {
   const [authMessage, setAuthMessage] = useState('');
+  const [authError, setAuthError] = useState(false);
+
+  const handleGoogleAuth = async () => {
+    setAuthMessage('');
+    setAuthError(false);
+    try {
+      await startGoogleSignIn();
+    } catch (error) {
+      setAuthMessage(error.message);
+      setAuthError(true);
+    }
+  };
 
   return (
     <div className="auth-page">
@@ -25,13 +38,11 @@ function Login() {
 
         <div className="auth-form-panel">
           <h2>Log in</h2>
-          <p className="auth-subtitle">Use your Google account to securely sign in.</p>
-          <GoogleAuthButton
-            onClick={() => setAuthMessage('Google sign-in is not connected yet. Configure Google OAuth to enable login.')}
-          >
+          <p className="auth-subtitle">Continue with Google to load your profile on this device.</p>
+          <GoogleAuthButton onClick={handleGoogleAuth}>
             Continue with Google
           </GoogleAuthButton>
-          {authMessage && <p className="auth-message" role="status">{authMessage}</p>}
+          {authMessage && <p className="auth-message" role={authError ? 'alert' : 'status'}>{authMessage}</p>}
 
           <p className="auth-switch">
             Don’t have an account? <Link to="/register">Register</Link>
