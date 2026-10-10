@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getSupabaseClient } from '../lib/supabase';
+import { clearUserProfile, getStoredUser } from '../utils/authStorage';
 import './TenantDashboard.css';
 
 function TenantDashboard() {
@@ -25,20 +26,14 @@ function TenantDashboard() {
     setErrorMessage('');
 
     try {
-      const supabase = getSupabaseClient();
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-
-      if (sessionError) {
-        throw sessionError;
-      }
-
-      const email = sessionData.session?.user.email;
+      const user = getStoredUser();
+      const email = user?.email;
       if (!email) {
         setStatus('signed-out');
         return;
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await getSupabaseClient()
         .from('users')
         .select('fullName,email,profileImage,phone,address,occupation')
         .eq('email', email)
@@ -154,17 +149,9 @@ function TenantDashboard() {
     loadProfile();
   }, [loadProfile]);
 
-  const handleSignOut = async () => {
-    try {
-      const { error } = await getSupabaseClient().auth.signOut();
-      if (error) {
-        throw error;
-      }
-      navigate('/login');
-    } catch (error) {
-      setErrorMessage(error.message || 'Could not sign out. Please try again.');
-      setStatus('error');
-    }
+  const handleSignOut = () => {
+    clearUserProfile();
+    navigate('/login');
   };
 
   const initials = profile?.fullName

@@ -1,14 +1,18 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useGoogleLogin } from '@react-oauth/google';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import GoogleAuthButton from '../../components/common/GoogleAuthButton';
-import { getSafeReturnTo, startGoogleSignIn } from '../../utils/supabaseAuth';
+import { getSafeReturnTo } from '../../utils/authNavigation';
+import { getGoogleProfile, registerGoogleUser } from '../../utils/googleOAuth';
 import './Register.css';
 
 function Register() {
   const [accountType, setAccountType] = useState('');
   const [authMessage, setAuthMessage] = useState('');
   const [authError, setAuthError] = useState(false);
+  const [isWorking, setIsWorking] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const returnTo = getSafeReturnTo(location.state?.from);
 
   const selectAccountType = (event) => {
@@ -17,15 +21,39 @@ function Register() {
     setAuthError(false);
   };
 
-  const handleGoogleAuth = async () => {
+  const handleGoogleSuccess = async (tokenResponse) => {
     setAuthMessage('');
     setAuthError(false);
+    setIsWorking(true);
     try {
-      await startGoogleSignIn(accountType, returnTo);
+      const googleProfile = await getGoogleProfile(tokenResponse.access_token);
+      const user = await registerGoogleUser(googleProfile, accountType);
+      const dashboard = user.role === 'owner' ? '/owner' : '/tenant/dashboard';
+      navigate(returnTo === '/' ? dashboard : returnTo, { replace: true });
     } catch (error) {
-      setAuthMessage(error.message);
+      setAuthMessage(error.message || 'Could not create your account. Please try again.');
       setAuthError(true);
+    } finally {
+      setIsWorking(false);
     }
+  };
+
+  const googleLogin = useGoogleLogin({
+    scope: 'openid email profile',
+    onSuccess: handleGoogleSuccess,
+    onError: () => {
+      setAuthMessage('Google sign-up was cancelled or could not be completed. Please try again.');
+      setAuthError(true);
+    },
+  });
+
+  const handleGoogleAuth = () => {
+    if (!process.env.REACT_APP_GOOGLE_CLIENT_ID) {
+      setAuthMessage('Google OAuth is not configured. Set REACT_APP_GOOGLE_CLIENT_ID and restart the app.');
+      setAuthError(true);
+      return;
+    }
+    googleLogin();
   };
 
   return (
@@ -95,10 +123,10 @@ function Register() {
           </fieldset>
 
           <GoogleAuthButton
-            disabled={!accountType}
+            disabled={!accountType || isWorking}
             onClick={handleGoogleAuth}
           >
-            Sign up with Google
+            {isWorking ? 'Checking your Google account…' : 'Sign up with Google'}
           </GoogleAuthButton>
           {!accountType && <p className="account-type-hint">Choose an account type to continue.</p>}
           {authMessage && <p className="auth-message" role={authError ? 'alert' : 'status'}>{authMessage}</p>}

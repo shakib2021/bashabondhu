@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { getSupabaseClient } from '../../lib/supabase';
+import { getStoredUser } from '../../utils/authStorage';
 import './Navbar.css';
 
 function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [authLoaded, setAuthLoaded] = useState(false);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => getStoredUser());
   const [avatarFailed, setAvatarFailed] = useState(false);
   const location = useLocation();
 
@@ -14,52 +13,25 @@ function Navbar() {
   const returnTo = `${location.pathname}${location.search}${location.hash}`;
 
   useEffect(() => {
-    let isMounted = true;
-    let subscription;
-
-    try {
-      const supabase = getSupabaseClient();
-      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-        if (isMounted) {
-          setUser(session?.user || null);
-          setAvatarFailed(false);
-          setAuthLoaded(true);
-        }
-      });
-      subscription = data.subscription;
-
-      supabase.auth.getSession()
-        .then(({ data: sessionData, error }) => {
-          if (error) {
-            throw error;
-          }
-          if (isMounted) {
-            setUser(sessionData.session?.user || null);
-            setAvatarFailed(false);
-            setAuthLoaded(true);
-          }
-        })
-        .catch(() => {
-          if (isMounted) {
-            setUser(null);
-            setAuthLoaded(true);
-          }
-        });
-    } catch {
-      setAuthLoaded(true);
-    }
-
+    const syncUser = () => {
+      setUser(getStoredUser());
+      setAvatarFailed(false);
+    };
+    window.addEventListener('bashabondhu:auth-change', syncUser);
+    window.addEventListener('storage', syncUser);
     return () => {
-      isMounted = false;
-      subscription?.unsubscribe();
+      window.removeEventListener('bashabondhu:auth-change', syncUser);
+      window.removeEventListener('storage', syncUser);
     };
   }, []);
 
-  const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
-  const userName = user?.user_metadata?.full_name
-    || user?.user_metadata?.name
+  const avatarUrl = user?.picture;
+  const userName = user?.name
     || user?.email
     || 'Your account';
+  const dashboardPath = user && (user.role || user.accountType) === 'owner'
+    ? '/owner'
+    : '/tenant/dashboard';
   const initials = userName.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
 
   return (
@@ -100,8 +72,8 @@ function Navbar() {
             <Link className="nav-link" to="/#about" onClick={closeMenu}>About us</Link>
           </div>
           <div className="nav-actions">
-            {authLoaded && (user ? (
-              <Link className="nav-dashboard" to="/tenant/dashboard" onClick={closeMenu} aria-label="Open your dashboard">
+            {user ? (
+              <Link className="nav-dashboard" to={dashboardPath} onClick={closeMenu} aria-label="Open your dashboard">
                 {avatarUrl && !avatarFailed ? (
                   <img
                     className="nav-avatar"
@@ -119,7 +91,7 @@ function Navbar() {
                 <Link className="nav-login" to="/login" state={{ from: returnTo }} onClick={closeMenu}>Log in</Link>
                 <Link className="button button-small" to="/register" state={{ from: returnTo }} onClick={closeMenu}>Register</Link>
               </>
-            ))}
+            )}
           </div>
         </div>
       </nav>
