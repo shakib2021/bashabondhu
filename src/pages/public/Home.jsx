@@ -1,4 +1,5 @@
 import Navbar from '../../components/common/Navbar';
+
 import './Home.css';
 
 const homes = [
@@ -157,20 +158,7 @@ function Home() {
           <p className="about-copy">BashaBondhu means a friend for your home. We’re here to make finding a place feel more personal, more trustworthy, and a little more like finding a friend.</p>
         </section>
       </main>
-      <footer className="site-footer">
-        <a className="brand footer-brand" href="#home">
-          <span className="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 40 40" fill="none">
-              <path d="M5 18.2 20 6l15 12.2v15.3a2.5 2.5 0 0 1-2.5 2.5h-25A2.5 2.5 0 0 1 5 33.5V18.2Z" fill="currentColor" />
-              <path d="M16 36V23h8v13" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="m2.5 18.5 17.5-14 17.5 14" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </span>
-          <span className="brand-name">Basha<span>Bondhu</span></span>
-        </a>
-        <p>Find your place. Feel at home.</p>
-        <a href="#home" className="back-top">Back to top ↑</a>
-      </footer>
+    
     </>
   );
 }
