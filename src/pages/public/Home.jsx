@@ -1,6 +1,7 @@
 import Navbar from '../../components/common/Navbar';
-
 import './Home.css';
+import Footer from '../../components/common/Footer';
+import '../../components/common/footer.css';
 
 const homes = [
   {
@@ -158,7 +159,8 @@ function Home() {
           <p className="about-copy">BashaBondhu means a friend for your home. We’re here to make finding a place feel more personal, more trustworthy, and a little more like finding a friend.</p>
         </section>
       </main>
-    
+
+      <Footer />
     </>
   );
 }

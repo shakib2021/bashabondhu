@@ -694,6 +694,37 @@
   line-height: 1.9;
 }
 
+.site-footer {
+  display: flex;
+  min-height: 84px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 max(32px, calc((100% - 1160px) / 2));
+  border-top: 1px solid #edf0e9;
+  background: #fff;
+}
+
+.footer-brand .brand-mark {
+  width: 30px;
+  height: 30px;
+}
+
+.footer-brand .brand-name {
+  font-size: 16px;
+}
+
+.site-footer > p,
+.back-top {
+  margin: 0;
+  color: #859087;
+  font-size: 11px;
+}
+
+.back-top {
+  color: #328365;
+  font-weight: 650;
+  text-decoration: none;
+}
 
 @media (max-width: 900px) {
   .hero,
