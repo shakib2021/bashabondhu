@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { getSupabaseClient } from '../lib/supabase';
+import { Link, Navigate, NavLink, useNavigate } from 'react-router-dom';
+import NotificationMenu from '../components/common/NotificationMenu';
 import { clearUserProfile, getStoredUser } from '../utils/authStorage';
+import { getUserInfo, updateUserInfo } from '../utils/userApi';
+import '../owner/OwnerDashboard.css';
 import './TenantDashboard.css';
 
 function TenantDashboard() {
@@ -33,18 +35,9 @@ function TenantDashboard() {
         return;
       }
 
-      const { data, error } = await getSupabaseClient()
-        .from('users')
-        .select('fullName,email,profileImage,phone,address,occupation')
-        .eq('email', email)
-        .maybeSingle();
-
-      if (error) {
-        throw error;
-      }
-
-      if (!data) {
-        setStatus('missing-profile');
+      const data = await getUserInfo(email);
+      if (data.role !== 'tenant') {
+        setStatus(data.role === 'owner' ? 'wrong-role-owner' : 'wrong-role');
         return;
       }
 
@@ -113,19 +106,7 @@ function TenantDashboard() {
         occupation: formValues.occupation.trim() || null,
         profileImage: profileImage || null,
       };
-      const { data, error } = await getSupabaseClient()
-        .from('users')
-        .update(updates)
-        .eq('email', profile.email)
-        .select('fullName,email,profileImage,phone,address,occupation')
-        .maybeSingle();
-
-      if (error) {
-        throw error;
-      }
-      if (!data) {
-        throw new Error('No profile was updated. Check that your database update policy allows you to edit your own profile.');
-      }
+      const data = await updateUserInfo(updates);
 
       setProfile(data);
       setFormValues({
@@ -154,6 +135,10 @@ function TenantDashboard() {
     navigate('/login');
   };
 
+  if (status === 'wrong-role' || status === 'wrong-role-owner') {
+    return <Navigate to={status === 'wrong-role-owner' ? '/owner' : '/'} replace />;
+  }
+
   const initials = profile?.fullName
     ?.trim()
     .split(/\s+/)
@@ -161,33 +146,70 @@ function TenantDashboard() {
     .map((part) => part[0])
     .join('')
     .toUpperCase();
+  const displayName = profile?.fullName || getStoredUser()?.name || 'My profile';
 
   return (
-    <main className="tenant-dashboard">
-      <header className="tenant-dashboard-header">
-        <Link className="tenant-brand" to="/" aria-label="BashaBondhu home">
-          <span className="tenant-brand-mark" aria-hidden="true">B</span>
-          <span>BashaBondhu</span>
+    <div className="owner-app tenant-app">
+      <aside className="owner-sidebar">
+        <Link className="owner-brand" to="/" aria-label="BashaBondhu home">
+          <span className="owner-brand-mark" aria-hidden="true">B</span>
+          <span>Basha<span className="owner-brand-accent">Bondhu</span></span>
         </Link>
-        <div className="tenant-header-actions">
-          <Link className="tenant-home-link" to="/">Home</Link>
+        <div className="owner-sidebar-label">WORKSPACE</div>
+        <nav className="owner-side-nav" aria-label="Tenant navigation">
+          <NavLink end to="/tenant/dashboard" className={({ isActive }) => `owner-side-link${isActive ? ' is-active' : ''}`}>
+            <span className="owner-nav-icon" aria-hidden="true">○</span>
+            My profile
+          </NavLink>
+          <Link className="owner-side-link" to="/#homes">
+            <span className="owner-nav-icon" aria-hidden="true">⌕</span>
+            Browse homes
+          </Link>
+        </nav>
+        <div className="owner-sidebar-bottom">
+          <div className="owner-help-card">
+            <span className="owner-help-icon" aria-hidden="true">?</span>
+            <strong>Need a hand?</strong>
+            <p>We’re here to help you find a place.</p>
+            <Link to="/#contact">Contact our team <span aria-hidden="true">→</span></Link>
+          </div>
           {status !== 'signed-out' && (
-            <button className="tenant-signout-button" type="button" onClick={handleSignOut}>
+            <button className="owner-signout" type="button" onClick={handleSignOut}>
+              <span aria-hidden="true">↗</span>
               Sign out
             </button>
           )}
         </div>
-      </header>
+      </aside>
 
-      <section className="tenant-dashboard-content" aria-labelledby="tenant-dashboard-title">
-        <div className="tenant-welcome">
-          <div>
-            <span className="tenant-eyebrow">TENANT ACCOUNT</span>
-            <h1 id="tenant-dashboard-title">Your profile</h1>
-            <p>Manage the personal details connected to your BashaBondhu account.</p>
+      <div className="owner-main">
+        <header className="owner-topbar">
+          <div className="owner-breadcrumb"><span>Workspace</span><span aria-hidden="true">/</span><strong>Tenant</strong></div>
+          <div className="owner-topbar-actions">
+            <NotificationMenu />
+            <Link className="owner-account owner-profile-link" to="/tenant/dashboard#tenant-profile" aria-label="My profile">
+              <span className="owner-account-copy">
+                <strong>{displayName}</strong>
+                <span>My profile</span>
+              </span>
+              {profile?.profileImage ? (
+                <img className="owner-avatar" src={profile.profileImage} alt="" />
+              ) : (
+                <span className="owner-avatar owner-avatar-fallback" aria-hidden="true">{initials || 'T'}</span>
+              )}
+            </Link>
           </div>
-          <span className="tenant-welcome-icon" aria-hidden="true">⌂</span>
-        </div>
+        </header>
+
+        <main className="owner-content tenant-dashboard-content">
+          <section className="tenant-welcome" aria-labelledby="tenant-dashboard-title">
+            <div>
+              <span className="tenant-eyebrow">TENANT ACCOUNT</span>
+              <h1 id="tenant-dashboard-title">Your profile</h1>
+              <p>Manage the personal details connected to your BashaBondhu account.</p>
+            </div>
+            <span className="tenant-welcome-icon" aria-hidden="true">⌂</span>
+          </section>
 
         {status === 'loading' && (
           <section className="tenant-profile-card tenant-feedback" aria-live="polite">
@@ -197,7 +219,7 @@ function TenantDashboard() {
         )}
 
         {status === 'ready' && profile && (
-          <section className="tenant-profile-card">
+          <section className="tenant-profile-card" id="tenant-profile">
             <div className="tenant-profile-card-heading">
               <div>
                 <span className="tenant-eyebrow">PERSONAL INFORMATION</span>
@@ -357,14 +379,6 @@ function TenantDashboard() {
           </section>
         )}
 
-        {status === 'missing-profile' && (
-          <section className="tenant-profile-card tenant-feedback">
-            <h2>Profile not found</h2>
-            <p>We couldn’t find a saved profile for this account. Try signing in again to sync your details.</p>
-            <Link className="tenant-primary-link" to="/login" state={{ from: '/tenant/dashboard' }}>Sign in again</Link>
-          </section>
-        )}
-
         {status === 'error' && (
           <section className="tenant-profile-card tenant-feedback" role="alert">
             <h2>We couldn’t load your profile</h2>
@@ -372,12 +386,13 @@ function TenantDashboard() {
             <button className="tenant-primary-link" type="button" onClick={loadProfile}>Try again</button>
           </section>
         )}
-      </section>
-      <footer className="tenant-dashboard-footer">
-        <span>© {new Date().getFullYear()} BashaBondhu</span>
-        <span>Find a place that feels like home.</span>
-      </footer>
-    </main>
+        </main>
+        <footer className="tenant-dashboard-footer">
+          <span>© {new Date().getFullYear()} BashaBondhu</span>
+          <span>Find a place that feels like home.</span>
+        </footer>
+      </div>
+    </div>
   );
 }
 

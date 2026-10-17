@@ -1,111 +1,119 @@
-const mockMaybeSingle = jest.fn();
-const mockSingle = jest.fn();
-const mockInsert = jest.fn();
-const mockFrom = jest.fn();
-
-jest.mock('../lib/supabase', () => ({
-  getSupabaseClient: () => ({ from: mockFrom }),
-}));
-
-import { getGoogleProfile, loginGoogleUser, registerGoogleUser } from './googleOAuth';
+import { loginGoogleUser, registerGoogleUser } from './googleOAuth';
 import { getStoredUser } from './authStorage';
 
 const originalFetch = global.fetch;
 
-const googleProfile = {
-  id: 'google-subject',
-  email: 'owner@example.com',
-  fullName: 'Home Owner',
-  profileImage: 'https://example.com/profile.png',
-};
-
 beforeEach(() => {
   localStorage.clear();
-  mockMaybeSingle.mockReset();
-  mockSingle.mockReset();
-  mockInsert.mockReset();
-  mockFrom.mockReset();
-  mockFrom.mockImplementation(() => ({
-    select: jest.fn(() => ({
-      eq: jest.fn(() => ({ maybeSingle: mockMaybeSingle })),
-    })),
-    insert: (...args) => {
-      mockInsert(...args);
-      return {
-        select: () => ({ single: mockSingle }),
-      };
-    },
-  }));
 });
 
 afterEach(() => {
   global.fetch = originalFetch;
 });
 
-test('loads and validates the Google user profile from its access token', async () => {
+test.each(['tenant', 'owner'])('registers the selected %s role with the backend', async (role) => {
   global.fetch = jest.fn().mockResolvedValue({
     ok: true,
     json: async () => ({
-      sub: 'google-subject',
-      email: 'owner@example.com',
-      email_verified: true,
-      name: 'Home Owner',
-      picture: 'https://example.com/profile.png',
+      success: true,
+      user: {
+        id: 'mongo-user-id',
+        email: 'owner@example.com',
+        fullName: 'Home Owner',
+        profileImage: 'https://example.com/profile.png',
+        role,
+      },
+      token: 'signed-token',
     }),
   });
 
-  await expect(getGoogleProfile('google-access-token')).resolves.toEqual(googleProfile);
+  const user = await registerGoogleUser(role, 'google-access-token');
+
   expect(global.fetch).toHaveBeenCalledWith(
-    'https://www.googleapis.com/oauth2/v3/userinfo',
-    { headers: { Authorization: 'Bearer google-access-token' } },
+    'http://localhost:5000/api/auth/google/register',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accessToken: 'google-access-token', role }),
+    },
   );
-});
-
-test.each(['tenant', 'owner', 'admin'])('checks for an existing email and inserts the selected %s role', async (role) => {
-  mockMaybeSingle.mockResolvedValue({ data: null, error: null });
-  mockSingle.mockResolvedValue({
-    data: { ...googleProfile, role },
-    error: null,
-  });
-
-  const user = await registerGoogleUser(googleProfile, role);
-
-  expect(mockInsert).toHaveBeenCalledWith({
-    email: googleProfile.email,
-    fullName: googleProfile.fullName,
-    profileImage: googleProfile.profileImage,
-    role,
-  });
   expect(user.role).toBe(role);
   expect(getStoredUser()).toMatchObject({
-    id: googleProfile.id,
-    email: googleProfile.email,
+    id: 'mongo-user-id',
+    email: 'owner@example.com',
     role,
+    token: 'signed-token',
   });
 });
 
-test('rejects registration if a row already exists for the Google email', async () => {
-  mockMaybeSingle.mockResolvedValue({
-    data: { email: googleProfile.email },
-    error: null,
-  });
-
-  await expect(registerGoogleUser(googleProfile, 'owner'))
-    .rejects.toThrow(/already exists/i);
-  expect(mockInsert).not.toHaveBeenCalled();
+test('does not allow admin registration', async () => {
+  global.fetch = jest.fn();
+  await expect(registerGoogleUser('admin', 'google-access-token'))
+    .rejects.toThrow(/tenant or owner/i);
+  expect(global.fetch).not.toHaveBeenCalled();
 });
 
-test('login only succeeds when the Google email already has a users row', async () => {
-  mockMaybeSingle.mockResolvedValue({
-    data: { ...googleProfile, role: 'tenant' },
-    error: null,
+test('shows the backend error when registration fails', async () => {
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: false,
+    json: async () => ({ success: false, message: 'Email already registered.' }),
   });
 
-  await expect(loginGoogleUser(googleProfile)).resolves.toMatchObject({
-    role: 'tenant',
-    email: googleProfile.email,
+  await expect(registerGoogleUser('owner', 'google-access-token'))
+    .rejects.toThrow('Email already registered.');
+});
+
+test('explains when the backend is unreachable or blocked by CORS', async () => {
+  global.fetch = jest.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+
+  await expect(registerGoogleUser('owner', 'google-access-token'))
+    .rejects.toThrow(/backend/i);
+});
+
+test('logs in with Google and stores the backend user and session token', async () => {
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({
+      success: true,
+      user: {
+        id: 'mongo-user-id',
+        fullName: 'Home Owner',
+        email: 'owner@example.com',
+        profileImage: 'https://example.com/profile.png',
+        role: 'owner',
+      },
+      token: 'signed-token',
+    }),
   });
 
-  mockMaybeSingle.mockResolvedValue({ data: null, error: null });
-  await expect(loginGoogleUser(googleProfile)).rejects.toThrow(/register first/i);
+  await expect(loginGoogleUser('google-access-token')).resolves.toMatchObject({
+    id: 'mongo-user-id',
+    role: 'owner',
+    email: 'owner@example.com',
+  });
+  expect(global.fetch).toHaveBeenCalledWith(
+    'http://localhost:5000/api/auth/google/login',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accessToken: 'google-access-token' }),
+    },
+  );
+  expect(getStoredUser()).toMatchObject({
+    id: 'mongo-user-id',
+    email: 'owner@example.com',
+    role: 'owner',
+    name: 'Home Owner',
+    token: 'signed-token',
+  });
+});
+
+test('shows the backend login error when the account cannot log in', async () => {
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: false,
+    json: async () => ({ success: false, message: 'Account not found. Register first.' }),
+  });
+
+  await expect(loginGoogleUser('google-access-token'))
+    .rejects.toThrow('Account not found. Register first.');
 });

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { getSupabaseClient } from '../lib/supabase';
+import NotificationMenu from '../components/common/NotificationMenu';
 import { clearUserProfile, getStoredUser } from '../utils/authStorage';
+import { getUserInfo } from '../utils/userApi';
 import './OwnerDashboard.css';
 
 function OwnerLayout() {
@@ -22,15 +23,7 @@ function OwnerLayout() {
           return;
         }
 
-        const { data: userProfile, error: profileError } = await getSupabaseClient()
-          .from('users')
-          .select('fullName,email,profileImage,role')
-          .eq('email', storedUser.email)
-          .maybeSingle();
-
-        if (profileError) {
-          throw profileError;
-        }
+        const userProfile = await getUserInfo(storedUser.email);
 
         if (!userProfile || userProfile.role !== 'owner') {
           if (isMounted) setStatus('not-owner');
@@ -42,6 +35,10 @@ function OwnerLayout() {
             fullName: userProfile.fullName || storedUser.name || storedUser.email,
             email: userProfile.email,
             profileImage: userProfile.profileImage || storedUser.picture || '',
+            phone: userProfile.phone,
+            address: userProfile.address,
+            occupation: userProfile.occupation,
+            isVerified: userProfile.isVerified,
           });
           setStatus('ready');
         }
@@ -128,6 +125,14 @@ function OwnerLayout() {
             <span className="owner-nav-icon" aria-hidden="true">▤</span>
             My properties
           </NavLink>
+          <NavLink to="/owner/contact-requests" className={({ isActive }) => `owner-side-link${isActive ? ' is-active' : ''}`}>
+            <span className="owner-nav-icon" aria-hidden="true">♡</span>
+            Contact requests
+          </NavLink>
+          <NavLink to="/owner/profile" className={({ isActive }) => `owner-side-link${isActive ? ' is-active' : ''}`}>
+            <span className="owner-nav-icon" aria-hidden="true">○</span>
+            My profile
+          </NavLink>
         </nav>
 
         <div className="owner-sidebar-bottom">
@@ -147,16 +152,19 @@ function OwnerLayout() {
       <div className="owner-main">
         <header className="owner-topbar">
           <div className="owner-breadcrumb"><span>Workspace</span><span aria-hidden="true">/</span><strong>Owner</strong></div>
-          <div className="owner-account">
-            <div className="owner-account-copy">
-              <strong>{profile.fullName}</strong>
-              <span>Property owner</span>
-            </div>
-            {profile.profileImage ? (
-              <img className="owner-avatar" src={profile.profileImage} alt="" />
-            ) : (
-              <span className="owner-avatar owner-avatar-fallback" aria-label={profile.fullName}>{initials || 'O'}</span>
-            )}
+          <div className="owner-topbar-actions">
+            <NotificationMenu />
+            <Link className="owner-account owner-profile-link" to="/owner/profile" aria-label="My profile">
+              <span className="owner-account-copy">
+                <strong>{profile.fullName}</strong>
+                <span>My profile</span>
+              </span>
+              {profile.profileImage ? (
+                <img className="owner-avatar" src={profile.profileImage} alt="" />
+              ) : (
+                <span className="owner-avatar owner-avatar-fallback" aria-hidden="true">{initials || 'O'}</span>
+              )}
+            </Link>
           </div>
         </header>
 

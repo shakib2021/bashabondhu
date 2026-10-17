@@ -1,36 +1,76 @@
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import Navbar from '../../components/common/Navbar';
 import './Home.css';
 import Footer from '../../components/common/Footer';
 import '../../components/common/footer.css';
+import { getPublicProperties } from '../../utils/propertyApi';
 
-const homes = [
-  {
-    area: 'Dhanmondi, Dhaka',
-    name: 'A sunny little home in the city',
-    price: '৳ 18,500',
-    details: '2 beds · 2 baths · 1,050 sq ft',
-    className: 'home-art-one',
-    tag: 'Popular',
-  },
-  {
-    area: 'Uttara, Dhaka',
-    name: 'Room to grow, room to breathe',
-    price: '৳ 14,000',
-    details: '3 beds · 2 baths · 1,200 sq ft',
-    className: 'home-art-two',
-    tag: 'New listing',
-  },
-  {
-    area: 'Bashundhara, Dhaka',
-    name: 'A peaceful place to call yours',
-    price: '৳ 22,000',
-    details: '3 beds · 3 baths · 1,450 sq ft',
-    className: 'home-art-three',
-    tag: 'Verified',
-  },
-];
+const POPULAR_RATING = 4.5;
+const NEW_LISTING_WINDOW = 2 * 24 * 60 * 60 * 1000;
+const artworkClasses = ['home-art-one', 'home-art-two', 'home-art-three'];
+
+function ListingArtwork({ property, index }) {
+  const postedAt = new Date(property.createdAt).getTime();
+  const age = Date.now() - postedAt;
+  const badges = [];
+
+  if (Number(property.rating) >= POPULAR_RATING) badges.push('Popular');
+  if (property.isVerified === true) badges.push('Verified');
+  if (Number.isFinite(postedAt) && age >= 0 && age <= NEW_LISTING_WINDOW) badges.push('New listing');
+
+  return (
+    <div className={`home-card-art ${artworkClasses[index % artworkClasses.length]}`}>
+      {property.images?.[0] ? (
+        <img className="listing-photo" src={property.images[0]} alt={`${property.title} accommodation`} loading="lazy" />
+      ) : (
+        <>
+          <div className="card-building">
+            <span className="building-roof" />
+            <span className="building-face"><i /><i /><i /><i /></span>
+          </div>
+          <span className="card-plant" />
+        </>
+      )}
+      {badges.length > 0 && (
+        <div className="listing-tags" aria-label="Listing highlights">
+          {badges.map((badge) => <span className={`listing-tag listing-tag-${badge.toLowerCase().replace(' ', '-')}`} key={badge}>{badge}</span>)}
+        </div>
+      )}
+      <span className="save-home" aria-hidden="true">♡</span>
+    </div>
+  );
+}
 
 function Home() {
+  const [properties, setProperties] = useState([]);
+  const [loadStatus, setLoadStatus] = useState('loading');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    setLoadStatus('loading');
+
+    getPublicProperties()
+      .then((listings) => {
+        if (isMounted) {
+          setProperties(listings);
+          setLoadStatus('ready');
+        }
+      })
+      .catch((error) => {
+        if (isMounted) {
+          setErrorMessage(error.message || 'Could not load homes right now.');
+          setLoadStatus('error');
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [reloadKey]);
+
   return (
     <>
       <Navbar />
@@ -97,27 +137,35 @@ function Home() {
             </div>
             <a href="#how-it-works" className="browse-link">See how to find yours <span aria-hidden="true">→</span></a>
           </div>
-          <div className="home-grid">
-            {homes.map((home) => (
-              <article className="home-card" key={home.name}>
-                <div className={`home-card-art ${home.className}`}>
-                  <span className="listing-tag">{home.tag}</span>
-                  <span className="save-home" aria-label="Save home">♡</span>
-                  <div className="card-building">
-                    <span className="building-roof" />
-                    <span className="building-face"><i /><i /><i /><i /></span>
-                  </div>
-                  <span className="card-plant" />
-                </div>
-                <div className="home-card-copy">
-                  <p className="home-area"><span aria-hidden="true">⌖</span> {home.area}</p>
-                  <h3>{home.name}</h3>
-                  <p className="home-details">{home.details}</p>
-                  <div className="home-price">{home.price}<span> / month</span></div>
-                </div>
-              </article>
-            ))}
-          </div>
+          {loadStatus === 'loading' && <p className="listing-load-state" role="status">Finding available homes…</p>}
+          {loadStatus === 'error' && (
+            <div className="listing-load-state" role="alert">
+              <span>{errorMessage}</span>
+              <button className="listing-retry" type="button" onClick={() => setReloadKey((key) => key + 1)}>Try again</button>
+            </div>
+          )}
+          {loadStatus === 'ready' && properties.length === 0 && (
+            <p className="listing-load-state">No homes are available right now. Check back soon.</p>
+          )}
+          {loadStatus === 'ready' && properties.length > 0 && (
+            <div className="home-grid">
+              {properties.slice(0, 6).map((property, index) => (
+                <Link className="home-card-link" to={`/properties/${property._id}`} key={property._id} aria-label={`View ${property.title}`}>
+                  <article className="home-card">
+                    <ListingArtwork property={property} index={index} />
+                    <div className="home-card-copy">
+                      <p className="home-area"><span aria-hidden="true">⌖</span> {property.location}, {property.city}</p>
+                      <h3>{property.title}</h3>
+                      <p className="home-details">
+                        {property.bedrooms} beds · {property.bathrooms} baths · {property.number_of_rooms} rooms
+                      </p>
+                      <div className="home-price">৳ {Number(property.monthly_rent).toLocaleString()}<span> / month</span></div>
+                    </div>
+                  </article>
+                </Link>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="how-section" id="how-it-works">

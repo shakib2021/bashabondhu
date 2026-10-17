@@ -201,6 +201,146 @@
   gap: 11px;
 }
 
+.owner-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.owner-profile-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.owner-notification-wrap {
+  position: relative;
+}
+
+.owner-notification-button {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #e5ece6;
+  border-radius: 9px;
+  background: #fff;
+  color: #688073;
+  cursor: pointer;
+}
+
+.owner-notification-button:hover,
+.owner-notification-button[aria-expanded="true"] {
+  border-color: #bdd4c2;
+  background: #f6faf6;
+  color: #287653;
+}
+
+.owner-notification-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.owner-notification-count {
+  min-width: 16px;
+  height: 16px;
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: grid;
+  place-items: center;
+  padding: 0 3px;
+  border: 2px solid #fff;
+  border-radius: 9px;
+  background: #b64f3d;
+  color: #fff;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.owner-notification-panel {
+  width: 230px;
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 10px);
+  right: 0;
+  padding: 16px;
+  border: 1px solid #e5ece6;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(35, 58, 45, 0.12);
+}
+
+.owner-notification-panel strong {
+  color: #344e40;
+  font-size: 12px;
+}
+
+.owner-notification-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 11px;
+  border-bottom: 1px solid #edf1ed;
+}
+
+.owner-notification-heading > span {
+  color: #87938b;
+  font-size: 9px;
+}
+
+.owner-notification-message,
+.owner-notification-error {
+  margin: 8px 0 0;
+  color: #87938b;
+  font-size: 11px;
+}
+
+.owner-notification-error {
+  color: #a34232;
+}
+
+.owner-notification-list {
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.owner-notification-item {
+  display: grid;
+  gap: 5px;
+  padding: 11px 9px;
+  border-bottom: 1px solid #edf1ed;
+  color: inherit;
+  text-decoration: none;
+}
+
+.owner-notification-item:hover,
+.owner-notification-item.is-unread {
+  background: #f6faf6;
+}
+
+.owner-notification-item-title {
+  color: #344e40;
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.owner-notification-item-message {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #77847d;
+  font-size: 9px;
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.owner-notification-item time {
+  color: #9aa49d;
+  font-size: 8px;
+}
+
 .owner-account-copy {
   display: grid;
   gap: 4px;
@@ -236,6 +376,133 @@
   color: #367651;
   font-size: 12px;
   font-weight: 750;
+}
+
+.owner-profile-panel {
+  overflow: hidden;
+}
+
+.owner-profile-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 20px;
+}
+
+.owner-profile-field {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #e9efe9;
+  border-radius: 7px;
+  background: #fbfcfb;
+}
+
+.owner-profile-field span {
+  display: block;
+  margin-bottom: 7px;
+  color: #7b8981;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.owner-profile-field strong {
+  display: block;
+  color: #334d40;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.owner-profile-verification {
+  padding: 7px 10px;
+  border-radius: 5px;
+  background: #f4f5f3;
+  color: #77847d;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.owner-profile-verification.is-verified {
+  background: #edf6ed;
+  color: #43815b;
+}
+
+.owner-request-list {
+  padding: 0 20px;
+}
+
+.owner-request-item {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.8fr) minmax(180px, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+  padding: 18px 0;
+  border-bottom: 1px solid #edf1ed;
+}
+
+.owner-request-item:last-child {
+  border-bottom: 0;
+}
+
+.owner-request-person,
+.owner-request-property {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.owner-request-person > strong {
+  color: #344d3e;
+  font-size: 12px;
+}
+
+.owner-request-person > a,
+.owner-request-property > a {
+  width: fit-content;
+  color: #347a54;
+  font-size: 11px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.owner-request-person time,
+.owner-request-property > span:last-child {
+  color: #87938b;
+  font-size: 9px;
+}
+
+.owner-request-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.owner-request-actions .owner-button {
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 10px;
+}
+
+.owner-requests-empty {
+  padding: 28px;
+}
+
+.owner-requests-empty h2 {
+  margin: 10px 0 7px;
+  color: #344d3e;
+  font-size: 16px;
+}
+
+.owner-requests-empty p,
+.owner-request-error {
+  color: #87938b;
+  font-size: 11px;
+}
+
+.owner-request-error {
+  color: #a34232;
 }
 
 .owner-content {
@@ -555,6 +822,84 @@
   min-height: 350px;
 }
 
+.owner-dashboard-state {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 42px 20px;
+  color: #748279;
+  font-size: 12px;
+  text-align: center;
+}
+
+.owner-dashboard-state p {
+  margin: 0;
+}
+
+.owner-recent-list {
+  padding: 0 21px;
+}
+
+.owner-recent-item {
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 0;
+  border-bottom: 1px solid #edf1ed;
+}
+
+.owner-recent-item:last-child {
+  border-bottom: 0;
+}
+
+.owner-recent-copy,
+.owner-recent-meta {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.owner-recent-copy strong,
+.owner-recent-meta strong {
+  color: #344d3e;
+  font-size: 11px;
+}
+
+.owner-recent-copy span {
+  overflow: hidden;
+  color: #87938b;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.owner-recent-meta {
+  justify-items: end;
+  flex: 0 0 auto;
+}
+
+.owner-listing-status {
+  padding: 4px 7px;
+  border-radius: 4px;
+  background: #edf6ed;
+  color: #43815b;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.owner-listing-status-booked {
+  background: #eef4f8;
+  color: #5881a0;
+}
+
+.owner-listing-status-rented {
+  background: #fbf4e8;
+  color: #9b773b;
+}
+
 .owner-count {
   display: inline-grid;
   min-width: 22px;
@@ -844,6 +1189,15 @@
   .owner-form-layout {
     grid-template-columns: minmax(0, 1fr) 205px;
   }
+
+  .owner-request-item {
+    grid-template-columns: minmax(140px, 0.8fr) minmax(160px, 1fr);
+  }
+
+  .owner-request-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 700px) {
@@ -926,6 +1280,15 @@
     display: none;
   }
 
+  .owner-topbar-actions {
+    gap: 10px;
+  }
+
+  .owner-profile-fields {
+    grid-template-columns: 1fr;
+    padding: 14px;
+  }
+
   .owner-content {
     padding: 28px 13px 36px;
   }
@@ -958,6 +1321,15 @@
     grid-template-columns: 39px 1fr auto;
     align-items: center;
     padding: 13px 14px;
+  }
+
+  .owner-request-item {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .owner-request-actions {
+    grid-column: auto;
   }
 
   .owner-stat-icon {

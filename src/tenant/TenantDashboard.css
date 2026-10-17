@@ -74,6 +74,12 @@
   flex: 1;
 }
 
+.tenant-app .tenant-dashboard-content {
+  width: min(960px, 100%);
+  margin: 0 auto;
+  padding: 42px 0 54px;
+}
+
 .tenant-welcome {
   display: flex;
   align-items: center;
@@ -388,6 +394,11 @@
 
   .tenant-dashboard-content {
     padding-top: 38px;
+  }
+
+  .tenant-app .tenant-dashboard-content {
+    padding-top: 30px;
+    padding-bottom: 38px;
   }
 
   .tenant-profile-fields {

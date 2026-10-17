@@ -419,9 +419,21 @@
   transition: transform 180ms ease, box-shadow 180ms ease;
 }
 
+.home-card-link {
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
 .home-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 13px 30px rgb(32 53 44 / 8%);
+}
+
+.home-card-link:focus-visible {
+  outline: 3px solid #80a98a;
+  outline-offset: 4px;
+  border-radius: 9px;
 }
 
 .home-card-art {
@@ -443,16 +455,66 @@
 }
 
 .listing-tag {
-  position: absolute;
-  z-index: 2;
-  top: 13px;
-  left: 13px;
   padding: 6px 9px;
   border-radius: 4px;
   background: #fffefa;
   color: #32795d;
   font-size: 9px;
   font-weight: 700;
+}
+
+.listing-tags {
+  position: absolute;
+  z-index: 2;
+  top: 13px;
+  left: 13px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  max-width: calc(100% - 58px);
+}
+
+.listing-tag-popular {
+  color: #956128;
+}
+
+.listing-tag-verified {
+  color: #32795d;
+}
+
+.listing-tag-new-listing {
+  color: #547b93;
+}
+
+.listing-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.listing-load-state {
+  display: flex;
+  min-height: 130px;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin: 0;
+  color: #7b877e;
+  font-size: 13px;
+  text-align: center;
+}
+
+.listing-retry {
+  padding: 8px 12px;
+  border: 1px solid #d8e5d9;
+  border-radius: 4px;
+  background: #fff;
+  color: #328365;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
 }
 
 .save-home {

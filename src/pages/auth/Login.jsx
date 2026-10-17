@@ -3,7 +3,7 @@ import { useGoogleLogin } from '@react-oauth/google';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import GoogleAuthButton from '../../components/common/GoogleAuthButton';
 import { getSafeReturnTo } from '../../utils/authNavigation';
-import { getGoogleProfile, loginGoogleUser } from '../../utils/googleOAuth';
+import { loginGoogleUser } from '../../utils/googleOAuth';
 import './Login.css';
 
 function Login() {
@@ -19,9 +19,8 @@ function Login() {
     setAuthError(false);
     setIsWorking(true);
     try {
-      const googleProfile = await getGoogleProfile(tokenResponse.access_token);
-      const user = await loginGoogleUser(googleProfile);
-      const dashboard = user.role === 'owner' ? '/owner' : '/tenant/dashboard';
+      const user = await loginGoogleUser(tokenResponse.access_token);
+      const dashboard = user.role === 'owner' ? '/owner' : user.role === 'admin' ? '/' : '/tenant/dashboard';
       navigate(returnTo === '/' ? dashboard : returnTo, { replace: true });
     } catch (error) {
       setAuthMessage(error.message || 'Could not sign in. Please try again.');

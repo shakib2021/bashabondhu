@@ -3,7 +3,7 @@ import { useGoogleLogin } from '@react-oauth/google';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import GoogleAuthButton from '../../components/common/GoogleAuthButton';
 import { getSafeReturnTo } from '../../utils/authNavigation';
-import { getGoogleProfile, registerGoogleUser } from '../../utils/googleOAuth';
+import { registerGoogleUser } from '../../utils/googleOAuth';
 import './Register.css';
 
 function Register() {
@@ -26,10 +26,8 @@ function Register() {
     setAuthError(false);
     setIsWorking(true);
     try {
-      const googleProfile = await getGoogleProfile(tokenResponse.access_token);
-      const user = await registerGoogleUser(googleProfile, accountType);
-      const dashboard = user.role === 'owner' ? '/owner' : '/tenant/dashboard';
-      navigate(returnTo === '/' ? dashboard : returnTo, { replace: true });
+      await registerGoogleUser(accountType, tokenResponse.access_token);
+      navigate(returnTo, { replace: true });
     } catch (error) {
       setAuthMessage(error.message || 'Could not create your account. Please try again.');
       setAuthError(true);
@@ -104,20 +102,6 @@ function Register() {
               <span className="account-type-copy">
                 <strong>Owner</strong>
                 <small>I want to list a house.</small>
-              </span>
-            </label>
-            <label className={`account-type-option${accountType === 'admin' ? ' is-selected' : ''}`}>
-              <input
-                type="radio"
-                name="accountType"
-                value="admin"
-                checked={accountType === 'admin'}
-                onChange={selectAccountType}
-              />
-              <span className="account-type-icon" aria-hidden="true">⚙</span>
-              <span className="account-type-copy">
-                <strong>Admin</strong>
-                <small>I manage homes and listings.</small>
               </span>
             </label>
           </fieldset>
