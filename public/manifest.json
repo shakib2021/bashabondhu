@@ -1,0 +1,16 @@
+{
+  "short_name": "BashaBondhu",
+  "name": "BashaBondhu",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#155b45",
+  "background_color": "#ffffff"
+}
