@@ -355,6 +355,7 @@ test('returns only available public listings with a safe owner verification flag
       title: 'Verified room',
       status: 'Available',
       rating: 4.7,
+      address: '12 Lake Road',
       email: 'owner@example.com',
     },
     { _id: 'rented-listing', ownerId: 'owner-user', title: 'Rented room', status: 'Rented' },
@@ -365,6 +366,7 @@ test('returns only available public listings with a safe owner verification flag
   assert.equal(response.status, 200);
   assert.equal(response.body.properties.length, 1);
   assert.equal(response.body.properties[0].title, 'Verified room');
+  assert.equal(response.body.properties[0].address, '12 Lake Road');
   assert.equal(response.body.properties[0].isVerified, true);
   assert.equal(Object.hasOwn(response.body.properties[0], 'ownerId'), false);
   assert.equal(Object.hasOwn(response.body.properties[0], 'email'), false);

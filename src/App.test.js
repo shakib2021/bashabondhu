@@ -57,6 +57,80 @@ test('opens the navigation menu when its toggle is activated', () => {
   expect(screen.getByRole('link', { name: /find a home/i })).toBeInTheDocument();
 });
 
+test('searches home listings by street address and gender from the navbar', async () => {
+  getPublicProperties.mockResolvedValueOnce([
+    {
+      _id: 'mens-listing',
+      title: 'Bright room',
+      address: '12 Lake Road',
+      location: 'Dhanmondi',
+      city: 'Dhaka',
+      gender: 'men',
+      images: [],
+    },
+    {
+      _id: 'womens-listing',
+      title: 'Quiet room',
+      address: '12 Lake Road',
+      location: 'Dhanmondi',
+      city: 'Dhaka',
+      gender: 'women',
+      images: [],
+    },
+  ]);
+
+  render(<App />);
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Search homes' }), {
+    target: { value: 'Lake Road men' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+
+  expect(await screen.findByRole('heading', { name: 'Bright room' })).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Quiet room' })).not.toBeInTheDocument();
+  expect(screen.getByText('1 homes found for “Lake Road men”.')).toBeInTheDocument();
+});
+
+test('filters listings by gender and accommodation type', async () => {
+  getPublicProperties.mockResolvedValueOnce([
+    {
+      _id: 'men-sublet',
+      title: 'Men’s riverside sublet',
+      accommodation_type: 'Sublet',
+      gender: 'men',
+      images: [],
+    },
+    {
+      _id: 'women-sublet',
+      title: 'Women’s garden sublet',
+      accommodation_type: 'Sublet',
+      gender: 'women',
+      images: [],
+    },
+    {
+      _id: 'men-mess',
+      title: 'Men’s shared mess',
+      accommodation_type: 'Mess',
+      gender: 'men',
+      images: [],
+    },
+  ]);
+
+  render(<App />);
+
+  await screen.findByRole('heading', { name: 'Men’s riverside sublet' });
+  fireEvent.change(screen.getByRole('combobox', { name: 'Filter by gender' }), {
+    target: { value: 'men' },
+  });
+  fireEvent.change(screen.getByRole('combobox', { name: 'Filter by accommodation type' }), {
+    target: { value: 'Sublet' },
+  });
+
+  expect(screen.getByRole('heading', { name: 'Men’s riverside sublet' })).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Women’s garden sublet' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Men’s shared mess' })).not.toBeInTheDocument();
+  expect(screen.getByText('1 homes match your filters.')).toBeInTheDocument();
+});
+
 test('shows tenant workspace navigation and an empty notifications state', async () => {
   localStorage.removeItem('bashabondhu.user');
   window.history.replaceState({}, '', '/tenant/dashboard');

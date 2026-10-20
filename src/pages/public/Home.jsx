@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import Navbar from '../../components/common/Navbar';
 import './Home.css';
 import Footer from '../../components/common/Footer';
@@ -9,6 +9,47 @@ import { getPublicProperties } from '../../utils/propertyApi';
 const POPULAR_RATING = 4.5;
 const NEW_LISTING_WINDOW = 2 * 24 * 60 * 60 * 1000;
 const artworkClasses = ['home-art-one', 'home-art-two', 'home-art-three'];
+const genderSearchTerms = {
+  men: ['men', 'male'],
+  women: ['women', 'female'],
+  any: ['any', 'either'],
+};
+
+function filterProperties(properties, query, genderFilter, accommodationFilter) {
+  const searchTerms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const genderTerms = Object.entries(genderSearchTerms)
+    .filter(([, terms]) => searchTerms.some((term) => terms.includes(term)))
+    .map(([gender]) => gender);
+  const textTerms = searchTerms.filter((term) => (
+    !Object.values(genderSearchTerms).some((terms) => terms.includes(term))
+    && term !== 'gender'
+  ));
+
+  return properties.filter((property) => {
+    const propertyGender = (property.gender || 'any').trim().toLowerCase();
+    const propertyAccommodation = (property.accommodation_type || '').trim().toLowerCase();
+
+    if (genderFilter !== 'all' && propertyGender !== genderFilter) return false;
+    if (
+      accommodationFilter !== 'all'
+      && propertyAccommodation !== accommodationFilter.trim().toLowerCase()
+    ) return false;
+    if (genderTerms.length > 0 && !genderTerms.includes(propertyGender)) {
+      return false;
+    }
+
+    const searchableText = [
+      property.title,
+      property.description,
+      property.address,
+      property.location,
+      property.city,
+      property.accommodation_type,
+    ].filter(Boolean).join(' ').toLowerCase();
+
+    return textTerms.every((term) => searchableText.includes(term));
+  });
+}
 
 function ListingArtwork({ property, index }) {
   const postedAt = new Date(property.createdAt).getTime();
@@ -43,10 +84,34 @@ function ListingArtwork({ property, index }) {
 }
 
 function Home() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [properties, setProperties] = useState([]);
   const [loadStatus, setLoadStatus] = useState('loading');
   const [errorMessage, setErrorMessage] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
+  const [genderFilter, setGenderFilter] = useState('all');
+  const [accommodationFilter, setAccommodationFilter] = useState('all');
+  const searchTerm = (searchParams.get('search') || '').trim();
+  const genderOptions = [...new Set(properties.map((property) => (
+    (property.gender || 'any').trim().toLowerCase()
+  )))].sort();
+  const accommodationOptions = [...new Set(properties
+    .map((property) => property.accommodation_type?.trim())
+    .filter(Boolean))].sort((first, second) => first.localeCompare(second));
+  const hasActiveFilters = searchTerm || genderFilter !== 'all' || accommodationFilter !== 'all';
+  const filteredProperties = filterProperties(
+    properties,
+    searchTerm,
+    genderFilter,
+    accommodationFilter,
+  );
+  const displayedProperties = hasActiveFilters ? filteredProperties : filteredProperties.slice(0, 6);
+
+  const clearFilters = () => {
+    setGenderFilter('all');
+    setAccommodationFilter('all');
+    setSearchParams({});
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -133,9 +198,52 @@ function Home() {
             <div>
               <p className="eyebrow">A place to begin</p>
               <h2>Homes worth <span>coming home to.</span></h2>
-              <p className="section-description">A few lovely places to get your search started.</p>
+              <p className="section-description">
+                {searchTerm && (genderFilter !== 'all' || accommodationFilter !== 'all')
+                  ? `${filteredProperties.length} homes match your search and filters.`
+                  : searchTerm
+                  ? `${filteredProperties.length} homes found for “${searchTerm}”.`
+                  : hasActiveFilters
+                    ? `${filteredProperties.length} homes match your filters.`
+                    : 'A few lovely places to get your search started.'}
+              </p>
             </div>
             <a href="#how-it-works" className="browse-link">See how to find yours <span aria-hidden="true">→</span></a>
+          </div>
+          <div className="listing-filters" aria-label="Filter listings">
+            <label className="listing-filter">
+              <span>Rent is for</span>
+              <select
+                aria-label="Filter by gender"
+                value={genderFilter}
+                onChange={(event) => setGenderFilter(event.target.value)}
+                disabled={loadStatus !== 'ready' || genderOptions.length === 0}
+              >
+                <option value="all">All genders</option>
+                {genderOptions.map((gender) => (
+                  <option key={gender} value={gender}>
+                    {gender === 'any' ? 'Any gender' : `${gender[0].toUpperCase()}${gender.slice(1)}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="listing-filter">
+              <span>Home type</span>
+              <select
+                aria-label="Filter by accommodation type"
+                value={accommodationFilter}
+                onChange={(event) => setAccommodationFilter(event.target.value)}
+                disabled={loadStatus !== 'ready' || accommodationOptions.length === 0}
+              >
+                <option value="all">All types</option>
+                {accommodationOptions.map((type) => <option key={type} value={type}>{type}</option>)}
+              </select>
+            </label>
+            {hasActiveFilters && (
+              <button className="listing-filter-clear" type="button" onClick={clearFilters}>
+                Clear filters
+              </button>
+            )}
           </div>
           {loadStatus === 'loading' && <p className="listing-load-state" role="status">Finding available homes…</p>}
           {loadStatus === 'error' && (
@@ -144,12 +252,20 @@ function Home() {
               <button className="listing-retry" type="button" onClick={() => setReloadKey((key) => key + 1)}>Try again</button>
             </div>
           )}
-          {loadStatus === 'ready' && properties.length === 0 && (
+          {loadStatus === 'ready' && properties.length === 0 && !searchTerm && (
             <p className="listing-load-state">No homes are available right now. Check back soon.</p>
           )}
-          {loadStatus === 'ready' && properties.length > 0 && (
+          {loadStatus === 'ready' && displayedProperties.length === 0 && hasActiveFilters && (
+            <p className="listing-load-state" role="status">
+              No homes match your search and filters.{' '}
+              <button className="listing-filter-clear" type="button" onClick={clearFilters}>
+                Clear filters
+              </button>
+            </p>
+          )}
+          {loadStatus === 'ready' && displayedProperties.length > 0 && (
             <div className="home-grid">
-              {properties.slice(0, 6).map((property, index) => (
+              {displayedProperties.map((property, index) => (
                 <Link className="home-card-link" to={`/properties/${property._id}`} key={property._id} aria-label={`View ${property.title}`}>
                   <article className="home-card">
                     <ListingArtwork property={property} index={index} />

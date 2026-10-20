@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { getStoredUser } from '../../utils/authStorage';
 import './Navbar.css';
 
@@ -7,10 +7,29 @@ function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState(() => getStoredUser());
   const [avatarFailed, setAvatarFailed] = useState(false);
+  const [searchParams] = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get('search') || '');
   const location = useLocation();
+  const navigate = useNavigate();
 
   const closeMenu = () => setMenuOpen(false);
   const returnTo = `${location.pathname}${location.search}${location.hash}`;
+  const currentSearch = searchParams.get('search') || '';
+
+  useEffect(() => {
+    setSearchTerm(currentSearch);
+  }, [currentSearch]);
+
+  const handleSearch = (event) => {
+    event.preventDefault();
+    const query = searchTerm.trim();
+    navigate({
+      pathname: '/',
+      search: query ? `?search=${encodeURIComponent(query)}` : '',
+      hash: '#homes',
+    });
+    closeMenu();
+  };
 
   useEffect(() => {
     const syncUser = () => {
@@ -70,7 +89,17 @@ function Navbar() {
             <Link className="nav-link" to="/#homes" onClick={closeMenu}>Find a home</Link>
             <Link className="nav-link" to="/#how-it-works" onClick={closeMenu}>How it works</Link>
             <Link className="nav-link" to="/#about" onClick={closeMenu}>About us</Link>
-          </div>
+            </div>
+            <form className="nav-search-form" role="search" onSubmit={handleSearch}>
+            <input
+              aria-label="Search homes"
+              type="search"
+              placeholder="Address, city, men or women"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+            />
+            <button className="nav-search-button" type="submit">Search</button>
+          </form>
           <div className="nav-actions">
             {user ? (
               <Link className="nav-dashboard" to={dashboardPath} onClick={closeMenu} aria-label="Open your dashboard">

@@ -736,6 +736,7 @@ function createApp({
         accommodation_type: property.accommodation_type,
         city: property.city,
         location: property.location,
+        address: property.address,
         monthly_rent: property.monthly_rent,
         number_of_rooms: property.number_of_rooms,
         bedrooms: property.bedrooms,

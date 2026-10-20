@@ -405,6 +405,55 @@
   font-size: 12px;
 }
 
+.listing-filters {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  margin: -12px 0 24px;
+}
+
+.listing-filter {
+  display: grid;
+  gap: 6px;
+  color: #6f7d73;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.listing-filter select {
+  min-width: 155px;
+  min-height: 39px;
+  padding: 0 30px 0 11px;
+  border: 1px solid #dfe8df;
+  border-radius: 5px;
+  background: #fff;
+  color: #34483e;
+  font: inherit;
+  font-size: 12px;
+}
+
+.listing-filter select:disabled {
+  background: #f6f7f4;
+  color: #8a948c;
+}
+
+.listing-filter-clear {
+  min-height: 37px;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: #328365;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.listing-filter-clear:hover {
+  color: #155d44;
+  text-decoration: underline;
+}
+
 .home-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -876,6 +925,21 @@
     align-items: flex-start;
     flex-direction: column;
     gap: 18px;
+  }
+
+  .listing-filters {
+    align-items: stretch;
+    flex-direction: column;
+    margin-top: -4px;
+  }
+
+  .listing-filter select {
+    width: 100%;
+  }
+
+  .listing-filter-clear {
+    align-self: flex-start;
+    padding-left: 0;
   }
 
   .section-heading h2,
