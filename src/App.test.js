@@ -11,6 +11,47 @@ import {
 } from './utils/propertyApi';
 import { getNotifications } from './utils/notificationApi';
 
+jest.mock('embla-carousel-react', () => {
+  const React = require('react');
+
+  return {
+    __esModule: true,
+    default: function useEmblaCarouselMock() {
+      const [, setSelected] = React.useState(0);
+      const selectedIndex = React.useRef(0);
+      const viewport = React.useRef(null);
+      const listeners = React.useRef({});
+      const api = React.useMemo(() => ({
+        selectedScrollSnap: () => selectedIndex.current,
+        on: (event, callback) => {
+          if (!listeners.current[event]) listeners.current[event] = new Set();
+          listeners.current[event].add(callback);
+        },
+        off: (event, callback) => listeners.current[event]?.delete(callback),
+        scrollTo: (index) => {
+          selectedIndex.current = index;
+          setSelected(index);
+          listeners.current.select?.forEach((callback) => callback());
+        },
+        scrollNext: () => {
+          const slideCount = viewport.current?.querySelectorAll('[aria-roledescription="slide"]').length || 1;
+          selectedIndex.current = (selectedIndex.current + 1) % slideCount;
+          setSelected(selectedIndex.current);
+          listeners.current.select?.forEach((callback) => callback());
+        },
+        scrollPrev: () => {
+          const slideCount = viewport.current?.querySelectorAll('[aria-roledescription="slide"]').length || 1;
+          selectedIndex.current = (selectedIndex.current - 1 + slideCount) % slideCount;
+          setSelected(selectedIndex.current);
+          listeners.current.select?.forEach((callback) => callback());
+        },
+      }), []);
+
+      return [viewport, api];
+    },
+  };
+});
+
 jest.mock('./utils/propertyApi', () => ({
   createProperty: jest.fn(),
   createContactRequest: jest.fn(),
@@ -42,9 +83,60 @@ test('renders the home page and main navigation', () => {
   render(<App />);
 
   expect(screen.getByRole('navigation', { name: /main navigation/i })).toBeInTheDocument();
-  expect(screen.getByRole('heading', { name: /find a place that feels like home/i })).toBeInTheDocument();
+  expect(screen.getByRole('region', { name: 'Featured homes' })).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: /find a place that feels like home/i })).not.toBeInTheDocument();
   expect(screen.getByRole('link', { name: /log in/i })).toHaveAttribute('href', '/login');
   expect(screen.getByRole('link', { name: /register/i })).toHaveAttribute('href', '/register');
+});
+
+test('cycles through featured homes in the home page carousel', async () => {
+  getPublicProperties.mockResolvedValueOnce([
+    {
+      _id: 'featured-one',
+      title: 'Sunny Dhanmondi apartment',
+      accommodation_type: 'Apartment',
+      description: 'Bright apartment beside the lake.',
+      location: 'Dhanmondi',
+      city: 'Dhaka',
+      monthly_rent: 18000,
+      bedrooms: 2,
+      bathrooms: 1,
+      number_of_rooms: 3,
+      images: [],
+    },
+    {
+      _id: 'featured-two',
+      title: 'Quiet Gulshan room',
+      location: 'Gulshan',
+      city: 'Dhaka',
+      monthly_rent: 22000,
+      images: [],
+    },
+  ]);
+
+  render(<App />);
+
+  await screen.findByText('01 / 02');
+  const firstSlide = document.querySelector('.featured-slide[aria-hidden="false"]');
+  expect(within(firstSlide).getByRole('heading', { name: 'Sunny Dhanmondi apartment' })).toBeInTheDocument();
+  expect(within(firstSlide).getByText('Bright apartment beside the lake.')).toBeInTheDocument();
+  expect(within(firstSlide).getByText('Apartment')).toBeInTheDocument();
+  expect(within(firstSlide).getByRole('link', { name: 'View Sunny Dhanmondi apartment listing' })).toHaveAttribute(
+    'href',
+    '/properties/featured-one',
+  );
+  expect(within(firstSlide).queryByText('Homes to make your own.')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Next featured home' }));
+
+  expect(screen.getByText('02 / 02')).toBeInTheDocument();
+  const secondSlide = document.querySelector('.featured-slide[aria-hidden="false"]');
+  expect(within(secondSlide).getByRole('heading', { name: 'Quiet Gulshan room' })).toBeInTheDocument();
+  expect(within(secondSlide).getByRole('link', { name: 'View Quiet Gulshan room listing' })).toHaveAttribute(
+    'href',
+    '/properties/featured-two',
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Show featured home 1' }));
+  expect(screen.getByText('01 / 02')).toBeInTheDocument();
 });
 
 test('opens the navigation menu when its toggle is activated', () => {
@@ -85,8 +177,9 @@ test('searches home listings by street address and gender from the navbar', asyn
   });
   fireEvent.click(screen.getByRole('button', { name: 'Search' }));
 
-  expect(await screen.findByRole('heading', { name: 'Bright room' })).toBeInTheDocument();
-  expect(screen.queryByRole('heading', { name: 'Quiet room' })).not.toBeInTheDocument();
+  const homesSection = within(document.getElementById('homes'));
+  expect(await homesSection.findByRole('heading', { name: 'Bright room' })).toBeInTheDocument();
+  expect(homesSection.queryByRole('heading', { name: 'Quiet room' })).not.toBeInTheDocument();
   expect(screen.getByText('1 homes found for “Lake Road men”.')).toBeInTheDocument();
 });
 
@@ -117,7 +210,8 @@ test('filters listings by gender and accommodation type', async () => {
 
   render(<App />);
 
-  await screen.findByRole('heading', { name: 'Men’s riverside sublet' });
+  const homesSection = within(document.getElementById('homes'));
+  await homesSection.findByRole('heading', { name: 'Men’s riverside sublet' });
   fireEvent.change(screen.getByRole('combobox', { name: 'Filter by gender' }), {
     target: { value: 'men' },
   });
@@ -125,9 +219,9 @@ test('filters listings by gender and accommodation type', async () => {
     target: { value: 'Sublet' },
   });
 
-  expect(screen.getByRole('heading', { name: 'Men’s riverside sublet' })).toBeInTheDocument();
-  expect(screen.queryByRole('heading', { name: 'Women’s garden sublet' })).not.toBeInTheDocument();
-  expect(screen.queryByRole('heading', { name: 'Men’s shared mess' })).not.toBeInTheDocument();
+  expect(homesSection.getByRole('heading', { name: 'Men’s riverside sublet' })).toBeInTheDocument();
+  expect(homesSection.queryByRole('heading', { name: 'Women’s garden sublet' })).not.toBeInTheDocument();
+  expect(homesSection.queryByRole('heading', { name: 'Men’s shared mess' })).not.toBeInTheDocument();
   expect(screen.getByText('1 homes match your filters.')).toBeInTheDocument();
 });
 
@@ -180,12 +274,13 @@ test('shows posted homes with badges based on rating, verification, and post age
 
   render(<App />);
 
-  expect(await screen.findByRole('heading', { name: 'Bright Dhanmondi room' })).toBeInTheDocument();
-  expect(screen.getByText('Popular')).toBeInTheDocument();
-  expect(screen.getByText('Verified')).toBeInTheDocument();
-  expect(screen.getByText('New listing')).toBeInTheDocument();
-  expect(screen.getByText('৳ 18,500')).toBeInTheDocument();
-  const olderCard = screen.getByRole('heading', { name: 'Older Gulshan sublet' }).closest('.home-card');
+  const homesSection = within(document.getElementById('homes'));
+  expect(await homesSection.findByRole('heading', { name: 'Bright Dhanmondi room' })).toBeInTheDocument();
+  expect(homesSection.getByText('Popular')).toBeInTheDocument();
+  expect(homesSection.getByText('Verified')).toBeInTheDocument();
+  expect(homesSection.getByText('New listing')).toBeInTheDocument();
+  expect(homesSection.getByText('৳ 18,500')).toBeInTheDocument();
+  const olderCard = homesSection.getByRole('heading', { name: 'Older Gulshan sublet' }).closest('.home-card');
   expect(olderCard).not.toHaveTextContent('Popular');
   expect(olderCard).not.toHaveTextContent('Verified');
   expect(olderCard).not.toHaveTextContent('New listing');
@@ -229,7 +324,7 @@ test('opens a home card, posts a comment, and replies beneath it', async () => {
 
   render(<App />);
 
-  fireEvent.click(await screen.findByRole('link', { name: 'View Sunny rental room' }));
+  fireEvent.click(await within(document.getElementById('homes')).findByRole('link', { name: 'View Sunny rental room' }));
   expect(await screen.findByRole('heading', { name: 'Sunny rental room' })).toBeInTheDocument();
   expect(screen.getByText('A bright room near transit.')).toBeInTheDocument();
   expect(screen.getAllByText('Verified owner')).toHaveLength(2);
@@ -285,7 +380,7 @@ test('lets a tenant request contact from a property details page', async () => {
 
   render(<App />);
 
-  fireEvent.click(await screen.findByRole('link', { name: 'View Quiet rental house' }));
+  fireEvent.click(await within(document.getElementById('homes')).findByRole('link', { name: 'View Quiet rental house' }));
   expect(await screen.findByRole('button', { name: 'Request contact' })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Request contact' }));
 
@@ -330,7 +425,7 @@ test('shows owner phone, email, and occupation after contact request acceptance'
 
   render(<App />);
 
-  fireEvent.click(await screen.findByRole('link', { name: 'View Garden apartment' }));
+  fireEvent.click(await within(document.getElementById('homes')).findByRole('link', { name: 'View Garden apartment' }));
   expect(await screen.findByText('OWNER CONTACT')).toBeInTheDocument();
   expect(screen.getByText('Architect')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: '+8801712345678' })).toHaveAttribute('href', 'tel:+8801712345678');

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import useEmblaCarousel from 'embla-carousel-react';
 import Navbar from '../../components/common/Navbar';
 import './Home.css';
 import Footer from '../../components/common/Footer';
@@ -86,11 +87,13 @@ function ListingArtwork({ property, index }) {
 function Home() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [properties, setProperties] = useState([]);
+  const [activeSlide, setActiveSlide] = useState(0);
   const [loadStatus, setLoadStatus] = useState('loading');
   const [errorMessage, setErrorMessage] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [genderFilter, setGenderFilter] = useState('all');
   const [accommodationFilter, setAccommodationFilter] = useState('all');
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
   const searchTerm = (searchParams.get('search') || '').trim();
   const genderOptions = [...new Set(properties.map((property) => (
     (property.gender || 'any').trim().toLowerCase()
@@ -106,6 +109,7 @@ function Home() {
     accommodationFilter,
   );
   const displayedProperties = hasActiveFilters ? filteredProperties : filteredProperties.slice(0, 6);
+  const featuredProperties = properties.slice(0, 5);
 
   const clearFilters = () => {
     setGenderFilter('all');
@@ -136,54 +140,159 @@ function Home() {
     };
   }, [reloadKey]);
 
+  useEffect(() => {
+    if (!emblaApi) return undefined;
+
+    const updateActiveSlide = () => setActiveSlide(emblaApi.selectedScrollSnap());
+    updateActiveSlide();
+    emblaApi.on('select', updateActiveSlide);
+    emblaApi.on('reInit', updateActiveSlide);
+
+    return () => {
+      emblaApi.off('select', updateActiveSlide);
+      emblaApi.off('reInit', updateActiveSlide);
+    };
+  }, [emblaApi]);
+
+  useEffect(() => {
+    setActiveSlide(0);
+    emblaApi?.scrollTo(0, true);
+  }, [emblaApi, properties]);
+
   return (
     <>
       <Navbar />
       <main>
         <section className="hero" id="home">
-          <div className="hero-copy">
-            <p className="eyebrow"><span className="eyebrow-dot" /> A better way to find your place</p>
-            <h1>Find a place<br />that feels like <span>home.</span></h1>
-            <p className="hero-description">
-              Finding a home should feel exciting, not overwhelming. Meet the people and places
-              that make your next move feel right.
-            </p>
-            <div className="hero-actions">
-              <a className="button" href="#homes">
-                Find your home
-                <span aria-hidden="true">↗</span>
-              </a>
-              <a className="text-link" href="#how-it-works">
-                See how it works <span aria-hidden="true">→</span>
-              </a>
-            </div>
-            <div className="hero-proof">
-              <div className="avatar-stack" aria-hidden="true">
-                <span>R</span><span>M</span><span>S</span><span className="avatar-more">+</span>
-              </div>
-              <p><strong>Good people, good homes.</strong><br />A community you can feel good about.</p>
-            </div>
-          </div>
+          <div
+            className="featured-carousel"
+            role="region"
+            aria-roledescription="carousel"
+            aria-label="Featured homes"
+          >
+            {loadStatus === 'loading' && (
+              <p className="featured-status" role="status">Finding available homes…</p>
+            )}
+            {loadStatus === 'error' && (
+              <p className="featured-status" role="status">Featured homes are temporarily unavailable.</p>
+            )}
+            {loadStatus === 'ready' && featuredProperties.length > 0 && (
+              <>
+                <div className="featured-viewport" ref={emblaRef}>
+                  <div className="featured-track">
+                    {featuredProperties.map((property, index) => {
+                      const isActive = index === activeSlide;
 
-          <div className="hero-visual" aria-label="Illustration of a welcoming home">
-            <div className="visual-sun" />
-            <div className="visual-note">
-              <span className="note-icon" aria-hidden="true">✦</span>
-              <span><strong>Good things</strong><br />start at home</span>
-            </div>
-            <div className="illustrated-home">
-              <div className="home-roof" />
-              <div className="home-body">
-                <div className="home-window window-left"><span /></div>
-                <div className="home-door"><span /></div>
-                <div className="home-window window-right"><span /></div>
-              </div>
-              <div className="home-step" />
-            </div>
-            <div className="visual-plant plant-left"><i /><i /><i /></div>
-            <div className="visual-plant plant-right"><i /><i /><i /></div>
-            <div className="visual-ground" />
-            <div className="visual-location"><span aria-hidden="true">⌖</span> Dhaka, Bangladesh</div>
+                      return (
+                        <article
+                          className="featured-slide"
+                          key={property._id}
+                          role="group"
+                          aria-roledescription="slide"
+                          aria-label={`${index + 1} of ${featuredProperties.length}`}
+                          aria-hidden={!isActive}
+                        >
+                          <Link
+                            className="featured-post"
+                            to={`/properties/${property._id}`}
+                            aria-label={`View ${property.title} listing`}
+                            tabIndex={isActive ? undefined : -1}
+                          >
+                            {property.images?.[0] ? (
+                              <img
+                                className="featured-photo"
+                                src={property.images[0]}
+                                alt=""
+                                loading={index === 0 ? 'eager' : 'lazy'}
+                              />
+                            ) : (
+                              <span className={`featured-photo-placeholder home-art-${['one', 'two', 'three'][index % 3]}`} />
+                            )}
+                            <span className="featured-shade" aria-hidden="true" />
+                            <span className="featured-post-content">
+                              {property.accommodation_type && (
+                                <span className="featured-category">{property.accommodation_type}</span>
+                              )}
+                              <h1>{property.title}</h1>
+                              {(property.location || property.city || property.address) && (
+                                <span className="featured-location">
+                                  <span aria-hidden="true">⌖</span>
+                                  {[property.location, property.city].filter(Boolean).join(', ') || property.address}
+                                </span>
+                              )}
+                              {property.description && (
+                                <span className="featured-description">{property.description}</span>
+                              )}
+                              <span className="featured-post-meta">
+                                {property.monthly_rent !== undefined
+                                  && property.monthly_rent !== null
+                                  && property.monthly_rent !== ''
+                                  && (
+                                    <span className="featured-price">
+                                      ৳ {Number(property.monthly_rent).toLocaleString()}
+                                      <span> / month</span>
+                                    </span>
+                                  )}
+                                {[
+                                  property.bedrooms !== undefined && property.bedrooms !== null && property.bedrooms !== ''
+                                    ? `${property.bedrooms} beds`
+                                    : null,
+                                  property.bathrooms !== undefined && property.bathrooms !== null && property.bathrooms !== ''
+                                    ? `${property.bathrooms} baths`
+                                    : null,
+                                  property.number_of_rooms !== undefined
+                                    && property.number_of_rooms !== null
+                                    && property.number_of_rooms !== ''
+                                    ? `${property.number_of_rooms} rooms`
+                                    : null,
+                                ].filter(Boolean).map((detail) => (
+                                  <span className="featured-detail" key={detail}>{detail}</span>
+                                ))}
+                              </span>
+                            </span>
+                            <span className="featured-open-icon" aria-hidden="true">↗</span>
+                          </Link>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="featured-controls" role="group" aria-label="Featured home controls">
+                  <button
+                    type="button"
+                    onClick={() => emblaApi?.scrollPrev()}
+                    aria-label="Previous featured home"
+                    disabled={featuredProperties.length < 2}
+                  >
+                    <span aria-hidden="true">←</span>
+                  </button>
+                  <div className="featured-indicators" aria-label="Choose featured home">
+                    {featuredProperties.map((property, index) => (
+                      <button
+                        type="button"
+                        key={property._id}
+                        className={index === activeSlide ? 'is-active' : ''}
+                        aria-label={`Show featured home ${index + 1}`}
+                        aria-current={index === activeSlide ? 'true' : undefined}
+                        onClick={() => emblaApi?.scrollTo(index)}
+                      />
+                    ))}
+                  </div>
+                  <span className="featured-count">{String(activeSlide + 1).padStart(2, '0')} / {String(featuredProperties.length).padStart(2, '0')}</span>
+                  <button
+                    type="button"
+                    onClick={() => emblaApi?.scrollNext()}
+                    aria-label="Next featured home"
+                    disabled={featuredProperties.length < 2}
+                  >
+                    <span aria-hidden="true">→</span>
+                  </button>
+                </div>
+              </>
+            )}
+            {loadStatus === 'ready' && featuredProperties.length === 0 && (
+              <p className="featured-status" role="status">No listings available.</p>
+            )}
           </div>
         </section>
 
