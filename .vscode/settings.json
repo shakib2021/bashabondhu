@@ -1,3 +1,4 @@
 {
-    "chat.editing.autoAcceptDelay": 1
+    "chat.editing.autoAcceptDelay": 1,
+    "python.terminal.useEnvFile": true
 }

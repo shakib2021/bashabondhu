@@ -1,5 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import App from './App';
+import { getFirebaseAuth } from './firebase';
 import {
   createContactRequest,
   createPropertyComment,
@@ -51,6 +53,15 @@ jest.mock('embla-carousel-react', () => {
     },
   };
 });
+
+jest.mock('firebase/auth', () => ({
+  sendPasswordResetEmail: jest.fn(),
+  signInWithEmailAndPassword: jest.fn(),
+}));
+
+jest.mock('./firebase', () => ({
+  getFirebaseAuth: jest.fn(() => ({ mock: 'auth' })),
+}));
 
 jest.mock('./utils/propertyApi', () => ({
   createProperty: jest.fn(),
@@ -445,7 +456,7 @@ test('navigates between home, registration, and login without reloading', () => 
   expect(window.location.pathname).toBe('/login');
 });
 
-test('registration offers one account type and Google only', () => {
+test('registration offers account types, email/password, and Google sign-up', () => {
   render(<App />);
   fireEvent.click(screen.getByRole('link', { name: /register/i }));
 
@@ -454,16 +465,63 @@ test('registration offers one account type and Google only', () => {
   expect(screen.queryByRole('radio', { name: /admin/i })).not.toBeInTheDocument();
   expect(screen.getAllByRole('radio')).toHaveLength(2);
   expect(screen.getByRole('button', { name: /sign up with google/i })).toBeDisabled();
-  expect(screen.queryByLabelText(/email|password/i)).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Full name')).toBeInTheDocument();
+  expect(screen.getByLabelText('Email')).toHaveAttribute('type', 'email');
+  expect(screen.getByLabelText('Password')).toHaveAttribute('type', 'password');
+  expect(screen.getByLabelText('Confirm password')).toHaveAttribute('type', 'password');
 
   fireEvent.click(screen.getByRole('radio', { name: /tenant/i }));
   expect(screen.getByRole('radio', { name: /tenant/i })).toBeChecked();
 });
 
-test('login offers Google as its only sign-in method', () => {
+test('login offers email/password and Google sign-in', () => {
   render(<App />);
   fireEvent.click(screen.getByRole('link', { name: /log in/i }));
 
   expect(screen.getByRole('button', { name: /continue with google/i })).toBeInTheDocument();
-  expect(screen.queryByLabelText(/email|password/i)).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /forgot password/i })).toBeInTheDocument();
+  expect(screen.getByLabelText('Email')).toHaveAttribute('type', 'email');
+  expect(screen.getByLabelText('Password')).toHaveAttribute('type', 'password');
+});
+
+test('forgot password opens a dedicated email reset form and returns to login', () => {
+  render(<App />);
+  fireEvent.click(screen.getByRole('link', { name: /log in/i }));
+  fireEvent.change(screen.getByLabelText('Email'), {
+    target: { value: 'user@example.com' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: /forgot password/i }));
+
+  expect(screen.getByRole('heading', { name: /reset password/i })).toBeInTheDocument();
+  expect(screen.getByText(/enter your account email/i)).toBeInTheDocument();
+  expect(screen.getByLabelText('Email')).toHaveValue('user@example.com');
+  expect(screen.getByRole('button', { name: /send reset link/i })).toBeInTheDocument();
+  expect(screen.queryByLabelText('Password')).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: /back to login/i }));
+  expect(screen.getByRole('heading', { name: /^log in$/i })).toBeInTheDocument();
+  expect(screen.getByLabelText('Password')).toBeInTheDocument();
+});
+
+test('shows a user-friendly message for incorrect email or password', async () => {
+  signInWithEmailAndPassword.mockRejectedValue({
+    code: 'auth/invalid-credential',
+    message: 'Firebase: Error (auth/invalid-credential).',
+  });
+
+  render(<App />);
+  fireEvent.click(screen.getByRole('link', { name: /log in/i }));
+  fireEvent.change(screen.getByLabelText('Email'), {
+    target: { value: 'user@example.com' },
+  });
+  fireEvent.change(screen.getByLabelText('Password'), {
+    target: { value: 'incorrect-password' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: /sign in with email/i }));
+
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'The email or password is incorrect. Please check your details and try again.',
+  );
+  expect(screen.queryByText('auth/invalid-credential')).not.toBeInTheDocument();
+  expect(getFirebaseAuth).toHaveBeenCalled();
 });

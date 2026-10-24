@@ -28,6 +28,11 @@ const userSchema = new mongoose.Schema({
     trim: true,
     maxlength: 255,
   },
+  firebaseUid: {
+    type: String,
+    unique: true,
+    sparse: true,
+  },
   profileImage: {
     type: String,
     default: null,
@@ -61,7 +66,7 @@ const userSchema = new mongoose.Schema({
   },
   authProvider: {
     type: String,
-    enum: ['google'],
+    enum: ['google', 'firebase'],
     default: 'google',
     required: true,
   },

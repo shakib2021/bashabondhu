@@ -6,6 +6,7 @@ const helmet = require('helmet');
 const Accommodation = require('./models/Accommodation');
 const User = require('./models/User');
 const { createAuthenticate } = require('./middleware/authenticate');
+const { getVerifiedFirebaseUser } = require('./utils/firebaseAuth');
 const { getVerifiedGoogleUser } = require('./utils/googleAuth');
 const { signAuthToken, verifyAuthToken } = require('./utils/authToken');
 const { serializeUser } = require('./utils/serializeUser');
@@ -13,6 +14,7 @@ const { serializeUser } = require('./utils/serializeUser');
 function createApp({
   UserModel = User,
   AccommodationModel = Accommodation,
+  firebaseUserLookup = getVerifiedFirebaseUser,
   googleUserLookup = getVerifiedGoogleUser,
   tokenSigner = signAuthToken,
   tokenVerifier = verifyAuthToken,
@@ -115,6 +117,116 @@ function createApp({
         return res.status(404).json({
           success: false,
           message: 'Account not found. Register first.',
+        });
+      }
+      if (user.accountStatus !== 'active') {
+        return res.status(403).json({
+          success: false,
+          message: 'This account is not active.',
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: 'Account found.',
+        user: serializeUser(user),
+        token: tokenSigner(String(user._id), jwtSecret),
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.post('/api/auth/firebase/register', authLimiter, async (req, res, next) => {
+    try {
+      const { idToken, role } = req.body;
+      if (!['tenant', 'owner'].includes(role)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Role must be tenant or owner.',
+        });
+      }
+
+      const firebaseUser = await firebaseUserLookup(idToken);
+      if (!firebaseUser.emailVerified) {
+        return res.status(403).json({
+          success: false,
+          message: 'Verify your email address before completing registration.',
+        });
+      }
+
+      const fullName = typeof req.body.fullName === 'string' && req.body.fullName.trim()
+        ? req.body.fullName.trim()
+        : firebaseUser.fullName;
+      if (fullName.length > 255) {
+        return res.status(400).json({ success: false, message: 'Name must be 255 characters or fewer.' });
+      }
+
+      const existingFirebaseUser = await UserModel.findOne({ firebaseUid: firebaseUser.uid });
+      if (existingFirebaseUser) {
+        if (existingFirebaseUser.authProvider !== 'firebase'
+          || existingFirebaseUser.role !== role
+          || existingFirebaseUser.accountStatus !== 'active') {
+          return res.status(409).json({ success: false, message: 'This Firebase account is already registered.' });
+        }
+        return res.json({
+          success: true,
+          message: 'Account found.',
+          user: serializeUser(existingFirebaseUser),
+          token: tokenSigner(String(existingFirebaseUser._id), jwtSecret),
+        });
+      }
+
+      const existingEmailUser = await UserModel.findOne({ email: firebaseUser.email });
+      if (existingEmailUser) {
+        return res.status(409).json({
+          success: false,
+          message: 'Email already registered. Sign in with your existing method.',
+        });
+      }
+
+      const user = await UserModel.create({
+        firebaseUid: firebaseUser.uid,
+        fullName,
+        email: firebaseUser.email,
+        role,
+        isVerified: firebaseUser.emailVerified,
+        authProvider: 'firebase',
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: 'Registration successful.',
+        user: serializeUser(user),
+        token: tokenSigner(String(user._id), jwtSecret),
+      });
+    } catch (error) {
+      if (error.code === 11000) {
+        return res.status(409).json({ success: false, message: 'Email already registered.' });
+      }
+      return next(error);
+    }
+  });
+
+  app.post('/api/auth/firebase/login', authLimiter, async (req, res, next) => {
+    try {
+      const firebaseUser = await firebaseUserLookup(req.body.idToken);
+      if (!firebaseUser.emailVerified) {
+        return res.status(403).json({
+          success: false,
+          message: 'Verify your email address before signing in.',
+        });
+      }
+
+      const user = await UserModel.findOne({ firebaseUid: firebaseUser.uid });
+
+      if (!user) {
+        const existingEmailUser = await UserModel.findOne({ email: firebaseUser.email });
+        return res.status(existingEmailUser ? 409 : 404).json({
+          success: false,
+          message: existingEmailUser
+            ? 'This account uses a different sign-in method.'
+            : 'Account not found. Register first.',
         });
       }
       if (user.accountStatus !== 'active') {

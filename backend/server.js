@@ -13,7 +13,7 @@ if (dnsServers.length > 0) {
   dns.setServers(dnsServers);
 }
 
-const requiredEnvironment = ['MONGODB_URI', 'JWT_SECRET', 'GOOGLE_CLIENT_ID'];
+const requiredEnvironment = ['MONGODB_URI', 'JWT_SECRET', 'GOOGLE_CLIENT_ID', 'FIREBASE_PROJECT_ID'];
 const missingEnvironment = requiredEnvironment.filter((name) => !process.env[name]);
 
 if (missingEnvironment.length > 0) {

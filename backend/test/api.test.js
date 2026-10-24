@@ -9,7 +9,9 @@ const properties = [];
 
 const UserModel = {
   async findOne(query) {
-    return [...users.values()].find((user) => user.email === query.email) || null;
+    return [...users.values()].find((user) => (
+      Object.entries(query).every(([field, value]) => user[field] === value)
+    )) || null;
   },
   async findById(id) {
     return users.get(String(id)) || null;
@@ -211,6 +213,21 @@ function createTestApp() {
         profileImage: accessToken === 'existing-google-token' ? null : 'https://example.com/new-user.png',
       };
     },
+    firebaseUserLookup: async (idToken) => {
+      if (!['valid-firebase-token', 'existing-firebase-token', 'unverified-firebase-token'].includes(idToken)) {
+        const error = new Error('Firebase token is invalid.');
+        error.status = 401;
+        throw error;
+      }
+      const isExistingUser = idToken === 'existing-firebase-token';
+      const isUnverifiedUser = idToken === 'unverified-firebase-token';
+      return {
+        uid: isExistingUser ? 'existing-firebase-uid' : isUnverifiedUser ? 'unverified-firebase-uid' : 'new-firebase-uid',
+        email: isExistingUser ? 'existing@example.com' : isUnverifiedUser ? 'unverified@example.com' : 'new@example.com',
+        fullName: isExistingUser ? 'Existing User' : 'New User',
+        emailVerified: !isUnverifiedUser,
+      };
+    },
     tokenSigner: () => 'signed-test-token',
     tokenVerifier: (token) => {
       if (token === 'signed-test-token') return 'existing-user';
@@ -244,6 +261,76 @@ test('registers a verified Google account as a tenant or owner', async () => {
   assert.equal(response.body.user.role, 'owner');
   assert.equal(response.body.user.isVerified, false);
   assert.equal(response.body.token, 'signed-test-token');
+});
+
+test('registers a Firebase account and binds it to the selected role', async () => {
+  const response = await request(testApp)
+    .post('/api/auth/firebase/register')
+    .send({ idToken: 'valid-firebase-token', role: 'owner', fullName: 'New Firebase User' });
+
+  assert.equal(response.status, 201);
+  assert.equal(response.body.user.email, 'new@example.com');
+  assert.equal(response.body.user.role, 'owner');
+  assert.equal(response.body.user.authProvider, 'firebase');
+  assert.equal(response.body.token, 'signed-test-token');
+  assert.equal(users.get('new-user').firebaseUid, 'new-firebase-uid');
+});
+
+test('rejects Firebase registration until the email is verified', async () => {
+  const response = await request(testApp)
+    .post('/api/auth/firebase/register')
+    .send({ idToken: 'unverified-firebase-token', role: 'tenant' });
+
+  assert.equal(response.status, 403);
+  assert.match(response.body.message, /verify your email/i);
+  assert.equal(users.has('new-user'), false);
+});
+
+test('rejects Firebase login until the email is verified', async () => {
+  const response = await request(testApp)
+    .post('/api/auth/firebase/login')
+    .send({ idToken: 'unverified-firebase-token' });
+
+  assert.equal(response.status, 403);
+  assert.match(response.body.message, /verify your email/i);
+});
+
+test('rejects Firebase registration using an email already owned by another provider', async () => {
+  const response = await request(testApp)
+    .post('/api/auth/firebase/register')
+    .send({ idToken: 'existing-firebase-token', role: 'tenant' });
+
+  assert.equal(response.status, 409);
+  assert.equal(users.has('new-user'), false);
+});
+
+test('rejects invalid Firebase tokens without creating a profile', async () => {
+  const response = await request(testApp)
+    .post('/api/auth/firebase/register')
+    .send({ idToken: 'invalid-token', role: 'tenant' });
+
+  assert.equal(response.status, 401);
+  assert.equal(users.has('new-user'), false);
+});
+
+test('logs in a Firebase account using its Firebase UID', async () => {
+  users.set('firebase-user', {
+    _id: 'firebase-user',
+    firebaseUid: 'existing-firebase-uid',
+    fullName: 'Existing User',
+    email: 'existing@example.com',
+    role: 'tenant',
+    authProvider: 'firebase',
+    accountStatus: 'active',
+  });
+
+  const response = await request(testApp)
+    .post('/api/auth/firebase/login')
+    .send({ idToken: 'existing-firebase-token' });
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.user.id, 'firebase-user');
+  assert.equal(response.body.user.role, 'tenant');
 });
 
 test('rejects public admin registration without verifying Google credentials', async () => {
