@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = `${process.env.REACT_APP_API_URL || 'https://bashabondhu-29gj.vercel.app'}/api`;
 
 export async function requestApi(path, { token, ...options } = {}) {
   let response;
