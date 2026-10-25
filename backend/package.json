@@ -8,6 +8,9 @@
     "dev": "node --watch server.js",
     "test": "node --test"
   },
+  "overrides": {
+    "jose": "4.15.9"
+  },
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
