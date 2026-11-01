@@ -444,7 +444,8 @@
 }
 
 .home-card {
-  overflow: hidden;
+  position: relative;
+  overflow: visible;
   border: 1px solid #edf0e9;
   border-radius: 9px;
   background: #fff;
@@ -452,6 +453,9 @@
 }
 
 .home-card-link {
+  display: block;
+  overflow: hidden;
+  border-radius: 9px;
   min-width: 0;
   color: inherit;
   text-decoration: none;
@@ -549,19 +553,238 @@
   cursor: pointer;
 }
 
-.save-home {
+.watchlist-control {
   position: absolute;
   z-index: 2;
   top: 11px;
   right: 13px;
+  display: inline-flex;
+}
+
+.listing-report-control {
+  position: absolute;
+  z-index: 4;
+  top: 10px;
+  right: 49px;
+}
+
+.listing-more-button {
   display: grid;
   width: 28px;
   height: 28px;
+  padding: 0 0 7px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: #fffefa;
+  color: #53675b;
+  box-shadow: 0 1px 5px rgb(22 39 29 / 14%);
+  cursor: pointer;
+  font: inherit;
+  font-size: 23px;
+  line-height: 1;
+}
+
+.listing-more-button:hover,
+.listing-more-button[aria-expanded="true"] {
+  background: #edf5ee;
+  color: #287650;
+}
+
+.listing-more-menu {
+  position: absolute;
+  top: 35px;
+  right: 0;
+  min-width: 145px;
+  padding: 5px;
+  border: 1px solid #e6ece6;
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgb(24 43 31 / 14%);
+}
+
+.listing-more-menu button {
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #394b40;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  text-align: left;
+}
+
+.listing-more-menu button:hover {
+  background: #f5f8f5;
+  color: #287650;
+}
+
+.listing-report-dialog {
+  position: absolute;
+  z-index: 5;
+  top: 35px;
+  right: 0;
+  width: min(290px, calc(100vw - 48px));
+  padding: 15px;
+  border: 1px solid #e4ebe4;
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgb(24 43 31 / 18%);
+  color: #34483e;
+}
+
+.listing-report-heading,
+.listing-report-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.listing-report-heading {
+  margin-bottom: 13px;
+  font-size: 13px;
+}
+
+.listing-report-heading > button {
+  width: 25px;
+  height: 25px;
+  border: 0;
+  border-radius: 50%;
+  background: #f3f6f3;
+  color: #637268;
+  cursor: pointer;
+  font-size: 19px;
+  line-height: 1;
+}
+
+.listing-report-field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 11px;
+  color: #56675c;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.listing-report-field small {
+  color: #8a968e;
+  font-size: 9px;
+  font-weight: 400;
+}
+
+.listing-report-field select,
+.listing-report-field textarea {
+  width: 100%;
+  padding: 8px 9px;
+  border: 1px solid #dfe7df;
+  border-radius: 5px;
+  background: #fff;
+  color: #34483e;
+  font: inherit;
+  font-size: 10px;
+}
+
+.listing-report-field textarea {
+  resize: vertical;
+}
+
+.listing-report-error {
+  margin: 0 0 10px;
+  color: #a63b37;
+  font-size: 10px;
+}
+
+.listing-report-actions {
+  justify-content: flex-end;
+  margin-top: 13px;
+}
+
+.listing-report-actions button,
+.listing-report-success button {
+  padding: 7px 10px;
+  border: 1px solid #dfe7df;
+  border-radius: 5px;
+  background: #fff;
+  color: #53675b;
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.listing-report-actions button[type="submit"],
+.listing-report-success button {
+  border-color: #328365;
+  background: #328365;
+  color: #fff;
+}
+
+.listing-report-actions button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.listing-report-success p {
+  margin: 0 0 13px;
+  color: #51715d;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.save-home {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
   place-items: center;
   border-radius: 50%;
   background: #fffefa;
   color: #6b7b70;
   font-size: 18px;
+  cursor: pointer;
+}
+
+.save-home:hover,
+.save-home.is-saved {
+  color: #c94f5a;
+}
+
+.save-home:disabled {
+  cursor: wait;
+}
+
+.watchlist-control-error {
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 0;
+  width: max-content;
+  max-width: 220px;
+  padding: 7px 9px;
+  border-radius: 5px;
+  background: #fff;
+  color: #a63b37;
+  box-shadow: 0 3px 12px rgb(0 0 0 / 12%);
+  font-size: 10px;
+}
+
+.watchlist-load-error {
+  margin: 14px 0 0;
+  color: #a63b37;
+  font-size: 12px;
+  text-align: center;
+}
+
+.watchlist-load-error button {
+  border: 0;
+  background: transparent;
+  color: #328365;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
 }
 
 .card-building {

@@ -58,6 +58,7 @@ const userSchema = new mongoose.Schema({
     default: false,
   },
   notifications: { type: [notificationSchema], default: [] },
+  watchlist: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Accommodation' }], default: [] },
   role: {
     type: String,
     enum: ['tenant', 'owner', 'admin'],

@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const Accommodation = require('./models/Accommodation');
+const PropertyReport = require('./models/PropertyReport');
 const User = require('./models/User');
 const { createAuthenticate } = require('./middleware/authenticate');
 const { getVerifiedFirebaseUser } = require('./utils/firebaseAuth');
@@ -14,6 +15,7 @@ const { serializeUser } = require('./utils/serializeUser');
 function createApp({
   UserModel = User,
   AccommodationModel = Accommodation,
+  PropertyReportModel = PropertyReport,
   firebaseUserLookup = getVerifiedFirebaseUser,
   googleUserLookup = getVerifiedGoogleUser,
   tokenSigner = signAuthToken,
@@ -260,6 +262,90 @@ function createApp({
     }
   });
 
+  app.post('/api/properties/:propertyId/reports', authenticate, async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.propertyId)) {
+        return res.status(404).json({ success: false, message: 'Property not found.' });
+      }
+
+      const user = await UserModel.findById(req.userId);
+      if (!user || user.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+
+      const property = await AccommodationModel.findById(req.params.propertyId).lean();
+      if (!property || property.status !== 'Available') {
+        return res.status(404).json({ success: false, message: 'Property not found.' });
+      }
+      if (String(property.ownerId?._id || property.ownerId) === String(user._id)) {
+        return res.status(403).json({ success: false, message: 'You cannot report your own listing.' });
+      }
+
+      const categories = new Set([
+        'scam',
+        'sexual-content',
+        'violence',
+        'discrimination',
+        'misleading-information',
+        'unsafe-property',
+        'duplicate-listing',
+        'other',
+      ]);
+      if (!categories.has(req.body.category)) {
+        return res.status(400).json({ success: false, message: 'Choose a valid reason for this report.' });
+      }
+      if (req.body.details !== undefined && typeof req.body.details !== 'string') {
+        return res.status(400).json({ success: false, message: 'Report details must be text.' });
+      }
+
+      const details = (req.body.details || '').trim();
+      if (details.length > 1000) {
+        return res.status(400).json({ success: false, message: 'Report details must be 1000 characters or fewer.' });
+      }
+
+      const report = await PropertyReportModel.create({
+        propertyId: property._id,
+        propertyTitle: property.title,
+        reporterId: user._id,
+        category: req.body.category,
+        details,
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: 'Thank you. Your report has been sent for review.',
+        report: {
+          id: report._id,
+          propertyId: report.propertyId,
+          category: report.category,
+          status: report.status || 'pending',
+        },
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.get('/api/admin/reports', authenticate, async (req, res, next) => {
+    try {
+      const user = await UserModel.findById(req.userId);
+      if (!user || user.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      if (user.role !== 'admin') {
+        return res.status(403).json({ success: false, message: 'Only admins can review property reports.' });
+      }
+
+      const reports = await PropertyReportModel.find({})
+        .sort({ createdAt: -1 })
+        .limit(100)
+        .lean();
+      return res.json({ success: true, reports });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
   app.put('/api/users/me', authenticate, async (req, res, next) => {
     try {
       const allowedFields = ['fullName', 'profileImage', 'phone', 'address', 'occupation'];
@@ -288,6 +374,84 @@ function createApp({
       }
 
       return res.json({ success: true, user: serializeUser(user) });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.get('/api/users/me/watchlist', authenticate, async (req, res, next) => {
+    try {
+      const user = await UserModel.findById(req.userId);
+      if (!user || user.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+
+      const properties = await AccommodationModel.find({
+        _id: { $in: user.watchlist || [] },
+        status: 'Available',
+      })
+        .sort({ createdAt: -1 })
+        .populate('ownerId', 'isVerified')
+        .lean();
+
+      return res.json({
+        success: true,
+        properties: properties.map((property) => ({
+          _id: property._id,
+          title: property.title,
+          description: property.description,
+          accommodation_type: property.accommodation_type,
+          city: property.city,
+          location: property.location,
+          address: property.address,
+          monthly_rent: property.monthly_rent,
+          number_of_rooms: property.number_of_rooms,
+          bedrooms: property.bedrooms,
+          bathrooms: property.bathrooms,
+          images: property.images,
+          gender: property.gender,
+          rating: property.rating,
+          createdAt: property.createdAt,
+          isVerified: property.ownerId?.isVerified === true,
+        })),
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.put('/api/users/me/watchlist/:propertyId', authenticate, async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.propertyId)) {
+        return res.status(404).json({ success: false, message: 'Property not found.' });
+      }
+      if (typeof req.body.watched !== 'boolean') {
+        return res.status(400).json({ success: false, message: 'Choose whether to save or remove this property.' });
+      }
+
+      const user = await UserModel.findById(req.userId);
+      if (!user || user.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+
+      const property = await AccommodationModel.findById(req.params.propertyId).lean();
+      if (!property || property.status !== 'Available') {
+        return res.status(404).json({ success: false, message: 'Property not found.' });
+      }
+
+      const update = req.body.watched
+        ? { $addToSet: { watchlist: property._id } }
+        : { $pull: { watchlist: property._id } };
+      const updatedUser = await UserModel.findOneAndUpdate(
+        { _id: req.userId, accountStatus: 'active' },
+        update,
+        { new: true, runValidators: true },
+      );
+      if (!updatedUser) {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+
+      return res.json({ success: true, watched: req.body.watched });
     } catch (error) {
       return next(error);
     }

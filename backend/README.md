@@ -12,7 +12,7 @@ Express and MongoDB API for Google and Firebase registration/login and user prof
 6. In Atlas, create a database user and allow your development/deployment server's IP in Network Access. Do not commit `.env` or expose `MONGODB_URI` in frontend variables.
 7. Run `npm run dev`.
 
-The API listens on port 5000 by default. The frontend should set `REACT_APP_API_URL=http://localhost:5000/api` and restart its dev server.
+The API listens on port 5000 by default. Set the frontend's `REACT_APP_API_URL` to the backend origin (for example, `http://localhost:5000`) and restart its dev server. The frontend adds `/api` to this URL automatically.
 
 If Node.js reports `querySrv ECONNREFUSED`, set optional `MONGODB_DNS_SERVERS` to a DNS resolver reachable from the machine running the backend (comma-separated for multiple resolvers). If DNS then resolves but MongoDB reports a server-selection timeout, add the backend machine's public IP under Atlas **Network Access** and confirm outbound access to MongoDB on port 27017.
 
@@ -24,6 +24,10 @@ If Node.js reports `querySrv ECONNREFUSED`, set optional `MONGODB_DNS_SERVERS` t
 - `POST /api/auth/firebase/login` — body: `{ "idToken": "..." }`. Requires an existing Firebase-linked app profile.
 - `GET /api/users/me` — requires `Authorization: Bearer <token>`.
 - `PUT /api/users/me` — requires the same bearer token; accepts `fullName`, `profileImage`, `phone`, `address`, and `occupation`.
+- `GET /api/users/me/watchlist` — returns the signed-in user's saved available listings.
+- `PUT /api/users/me/watchlist/:propertyId` — requires `{ "watched": true | false }` to save or remove an available listing.
+- `POST /api/properties/:propertyId/reports` — authenticated users can submit a report with a category and optional details.
+- `GET /api/admin/reports` — admins can review the latest 100 submitted property reports.
 - `GET /api/health` — health check.
 
 Successful login/registration responses include `{ "success": true, "user": {...}, "token": "..." }`. MongoDB remains the source of truth for account roles and profile details.

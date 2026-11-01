@@ -129,6 +129,10 @@ function OwnerLayout() {
             <span className="owner-nav-icon" aria-hidden="true">♡</span>
             Contact requests
           </NavLink>
+          <NavLink end to="/owner#watchlist" className={({ isActive }) => `owner-side-link${isActive ? ' is-active' : ''}`}>
+            <span className="owner-nav-icon" aria-hidden="true">♥</span>
+            Watchlist
+          </NavLink>
           <NavLink to="/owner/profile" className={({ isActive }) => `owner-side-link${isActive ? ' is-active' : ''}`}>
             <span className="owner-nav-icon" aria-hidden="true">○</span>
             My profile

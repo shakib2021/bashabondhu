@@ -6,6 +6,7 @@ const appModule = require('../src/app');
 const app = appModule.createApp;
 const users = new Map();
 const properties = [];
+const reports = [];
 
 const UserModel = {
   async findOne(query) {
@@ -37,6 +38,15 @@ const UserModel = {
         isRead: false,
         ...item,
       })));
+    } else if (update.$addToSet?.watchlist) {
+      user.watchlist = user.watchlist || [];
+      if (!user.watchlist.some((item) => String(item) === String(update.$addToSet.watchlist))) {
+        user.watchlist.push(update.$addToSet.watchlist);
+      }
+    } else if (update.$pull?.watchlist) {
+      user.watchlist = (user.watchlist || []).filter((item) => (
+        String(item) !== String(update.$pull.watchlist)
+      ));
     } else {
       Object.assign(user, update.$set);
     }
@@ -47,6 +57,7 @@ const UserModel = {
 function createTestApp() {
   users.clear();
   properties.length = 0;
+  reports.length = 0;
   users.set('existing-user', {
     _id: 'existing-user',
     fullName: 'Existing User',
@@ -81,6 +92,26 @@ function createTestApp() {
 
   return app({
     UserModel,
+    PropertyReportModel: {
+      async create(fields) {
+        const report = { _id: `report-${reports.length + 1}`, status: 'pending', ...fields };
+        reports.push(report);
+        return report;
+      },
+      find() {
+        return {
+          sort() {
+            return this;
+          },
+          limit() {
+            return this;
+          },
+          async lean() {
+            return reports;
+          },
+        };
+      },
+    },
     AccommodationModel: {
       async create(fields) {
         const property = { _id: 'new-property', ...fields };
@@ -90,6 +121,9 @@ function createTestApp() {
       find(query) {
         const matchingProperties = properties.filter((property) => Object.entries(query).every(([field, value]) => {
           if (field === 'contactRequests.0') return property.contactRequests?.length > 0;
+          if (field === '_id' && value?.$in) {
+            return value.$in.some((id) => String(id) === String(property._id));
+          }
           return String(property[field]) === String(value);
         }));
         return {
@@ -122,6 +156,7 @@ function createTestApp() {
             return {
               ...property,
               ownerId: owner ? {
+                _id: owner._id,
                 fullName: owner.fullName,
                 isVerified: owner.isVerified,
                 email: owner.email,
@@ -376,6 +411,104 @@ test('updates allowed profile fields without allowing role escalation', async ()
   assert.equal(response.body.user.occupation, 'Engineer');
   assert.equal(response.body.user.isVerified, false);
   assert.equal(response.body.user.role, 'admin');
+});
+
+test('allows tenants and owners to save, list, and remove available properties', async () => {
+  const propertyId = '650000000000000000000051';
+  properties.push({
+    _id: propertyId,
+    ownerId: 'owner-user',
+    title: 'Sunny apartment',
+    accommodation_type: 'Apartment',
+    city: 'Dhaka',
+    location: 'Dhanmondi',
+    monthly_rent: 30000,
+    number_of_rooms: 2,
+    bedrooms: 2,
+    bathrooms: 1,
+    images: ['https://example.com/home.png'],
+    status: 'Available',
+  });
+
+  const unauthorized = await request(testApp)
+    .put(`/api/users/me/watchlist/${propertyId}`)
+    .send({ watched: true });
+  assert.equal(unauthorized.status, 401);
+
+  for (const [token, userId] of [['tenant-test-token', 'tenant-user'], ['owner-test-token', 'owner-user']]) {
+    const saved = await request(testApp)
+      .put(`/api/users/me/watchlist/${propertyId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ watched: true });
+    assert.equal(saved.status, 200);
+    assert.equal(saved.body.watched, true);
+    assert.equal(users.get(userId).watchlist.length, 1);
+
+    const watchlist = await request(testApp)
+      .get('/api/users/me/watchlist')
+      .set('Authorization', `Bearer ${token}`);
+    assert.equal(watchlist.status, 200);
+    assert.equal(watchlist.body.properties.length, 1);
+    assert.equal(watchlist.body.properties[0]._id, propertyId);
+    assert.equal(watchlist.body.properties[0].title, 'Sunny apartment');
+
+    const removed = await request(testApp)
+      .put(`/api/users/me/watchlist/${propertyId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ watched: false });
+    assert.equal(removed.status, 200);
+    assert.equal(removed.body.watched, false);
+    assert.deepEqual(users.get(userId).watchlist, []);
+  }
+});
+
+test('accepts listing reports and restricts report review to admins', async () => {
+  const propertyId = '650000000000000000000061';
+  properties.push({
+    _id: propertyId,
+    ownerId: 'owner-user',
+    title: 'Questionable room',
+    status: 'Available',
+  });
+
+  const unauthenticated = await request(testApp)
+    .post(`/api/properties/${propertyId}/reports`)
+    .send({ category: 'scam' });
+  assert.equal(unauthenticated.status, 401);
+
+  const invalidCategory = await request(testApp)
+    .post(`/api/properties/${propertyId}/reports`)
+    .set('Authorization', 'Bearer tenant-test-token')
+    .send({ category: 'not-a-reason' });
+  assert.equal(invalidCategory.status, 400);
+
+  const ownListing = await request(testApp)
+    .post(`/api/properties/${propertyId}/reports`)
+    .set('Authorization', 'Bearer owner-test-token')
+    .send({ category: 'scam' });
+  assert.equal(ownListing.status, 403);
+
+  const submitted = await request(testApp)
+    .post(`/api/properties/${propertyId}/reports`)
+    .set('Authorization', 'Bearer tenant-test-token')
+    .send({ category: 'scam', details: '  Suspicious payment request.  ' });
+  assert.equal(submitted.status, 201);
+  assert.equal(submitted.body.report.category, 'scam');
+  assert.equal(reports[0].details, 'Suspicious payment request.');
+  assert.equal(reports[0].propertyTitle, 'Questionable room');
+  assert.equal(reports[0].reporterId, 'tenant-user');
+
+  const forbidden = await request(testApp)
+    .get('/api/admin/reports')
+    .set('Authorization', 'Bearer tenant-test-token');
+  assert.equal(forbidden.status, 403);
+
+  const reviewQueue = await request(testApp)
+    .get('/api/admin/reports')
+    .set('Authorization', 'Bearer signed-test-token');
+  assert.equal(reviewQueue.status, 200);
+  assert.equal(reviewQueue.body.reports.length, 1);
+  assert.equal(reviewQueue.body.reports[0].propertyId, propertyId);
 });
 
 test('creates an owner listing with verified email and an unrated default', async () => {

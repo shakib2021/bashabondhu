@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import useEmblaCarousel from 'embla-carousel-react';
 import Navbar from '../../components/common/Navbar';
 import './Home.css';
 import Footer from '../../components/common/Footer';
 import '../../components/common/footer.css';
+import WatchlistButton from '../../components/common/WatchlistButton';
+import ReportListingButton from '../../components/common/ReportListingButton';
+import { getStoredUser } from '../../utils/authStorage';
 import { getPublicProperties } from '../../utils/propertyApi';
+import { getMyWatchlist } from '../../utils/watchlistApi';
 
 const POPULAR_RATING = 4.5;
 const NEW_LISTING_WINDOW = 2 * 24 * 60 * 60 * 1000;
@@ -79,7 +83,6 @@ function ListingArtwork({ property, index }) {
           {badges.map((badge) => <span className={`listing-tag listing-tag-${badge.toLowerCase().replace(' ', '-')}`} key={badge}>{badge}</span>)}
         </div>
       )}
-      <span className="save-home" aria-hidden="true">♡</span>
     </div>
   );
 }
@@ -91,9 +94,16 @@ function Home() {
   const [loadStatus, setLoadStatus] = useState('loading');
   const [errorMessage, setErrorMessage] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
+  const [watchedProperties, setWatchedProperties] = useState(new Set());
+  const [watchlistStatus, setWatchlistStatus] = useState(
+    () => (getStoredUser()?.token ? 'loading' : 'ready'),
+  );
+  const [watchlistError, setWatchlistError] = useState('');
+  const [watchlistReloadKey, setWatchlistReloadKey] = useState(0);
   const [genderFilter, setGenderFilter] = useState('all');
   const [accommodationFilter, setAccommodationFilter] = useState('all');
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
+  const navigate = useNavigate();
   const searchTerm = (searchParams.get('search') || '').trim();
   const genderOptions = [...new Set(properties.map((property) => (
     (property.gender || 'any').trim().toLowerCase()
@@ -139,6 +149,38 @@ function Home() {
       isMounted = false;
     };
   }, [reloadKey]);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!getStoredUser()?.token) {
+      setWatchedProperties(new Set());
+      setWatchlistStatus('ready');
+      setWatchlistError('');
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    setWatchlistStatus('loading');
+    getMyWatchlist()
+      .then((listings) => {
+        if (isMounted) {
+          setWatchedProperties(new Set(listings.map((property) => String(property._id || property.id))));
+          setWatchlistStatus('ready');
+          setWatchlistError('');
+        }
+      })
+      .catch((error) => {
+        if (isMounted) {
+          setWatchlistError(error.message || 'Could not load your watchlist.');
+          setWatchlistStatus('error');
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [watchlistReloadKey]);
 
   useEffect(() => {
     if (!emblaApi) return undefined;
@@ -375,8 +417,8 @@ function Home() {
           {loadStatus === 'ready' && displayedProperties.length > 0 && (
             <div className="home-grid">
               {displayedProperties.map((property, index) => (
-                <Link className="home-card-link" to={`/properties/${property._id}`} key={property._id} aria-label={`View ${property.title}`}>
-                  <article className="home-card">
+                <article className="home-card" key={property._id}>
+                  <Link className="home-card-link" to={`/properties/${property._id}`} aria-label={`View ${property.title}`}>
                     <ListingArtwork property={property} index={index} />
                     <div className="home-card-copy">
                       <p className="home-area"><span aria-hidden="true">⌖</span> {property.location}, {property.city}</p>
@@ -386,10 +428,35 @@ function Home() {
                       </p>
                       <div className="home-price">৳ {Number(property.monthly_rent).toLocaleString()}<span> / month</span></div>
                     </div>
-                  </article>
-                </Link>
+                  </Link>
+                  <WatchlistButton
+                    propertyId={property._id}
+                    watched={watchedProperties.has(String(property._id))}
+                    disabled={watchlistStatus !== 'ready'}
+                    onChange={(watched) => {
+                      setWatchedProperties((current) => {
+                        const next = new Set(current);
+                        if (watched) next.add(String(property._id));
+                        else next.delete(String(property._id));
+                        return next;
+                      });
+                    }}
+                    onSignInRequired={() => navigate('/login', { state: { from: '/#homes' } })}
+                  />
+                  <ReportListingButton
+                    propertyId={property._id}
+                    propertyTitle={property.title}
+                    onSignInRequired={() => navigate('/login', { state: { from: '/#homes' } })}
+                  />
+                </article>
               ))}
             </div>
+          )}
+          {watchlistStatus === 'error' && (
+            <p className="watchlist-load-error" role="alert">
+              {watchlistError}{' '}
+              <button type="button" onClick={() => setWatchlistReloadKey((key) => key + 1)}>Try again</button>
+            </p>
           )}
         </section>
 

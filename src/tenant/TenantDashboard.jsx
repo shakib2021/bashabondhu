@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate, NavLink, useNavigate } from 'react-router-dom';
 import NotificationMenu from '../components/common/NotificationMenu';
+import WatchlistPanel from '../components/common/WatchlistPanel';
 import { clearUserProfile, getStoredUser } from '../utils/authStorage';
 import { getUserInfo, updateUserInfo } from '../utils/userApi';
 import '../owner/OwnerDashboard.css';
@@ -164,6 +165,10 @@ function TenantDashboard() {
           <Link className="owner-side-link" to="/#homes">
             <span className="owner-nav-icon" aria-hidden="true">⌕</span>
             Browse homes
+          </Link>
+          <Link className="owner-side-link" to="/tenant/dashboard#watchlist">
+            <span className="owner-nav-icon" aria-hidden="true">♡</span>
+            Watchlist
           </Link>
         </nav>
         <div className="owner-sidebar-bottom">
@@ -370,6 +375,7 @@ function TenantDashboard() {
             )}
           </section>
         )}
+        {status === 'ready' && profile && <WatchlistPanel />}
 
         {status === 'signed-out' && (
           <section className="tenant-profile-card tenant-feedback">

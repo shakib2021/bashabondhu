@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
+import WatchlistPanel from '../components/common/WatchlistPanel';
 import { getMyProperties } from '../utils/propertyApi';
 
 function OwnerDashboard() {
@@ -133,6 +134,7 @@ function OwnerDashboard() {
         </div>
         <Link to="/owner/properties/new" aria-label="Add a property">Get started <span aria-hidden="true">→</span></Link>
       </section>
+      <WatchlistPanel />
     </>
   );
 }
