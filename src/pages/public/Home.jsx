@@ -62,7 +62,6 @@ function ListingArtwork({ property, index }) {
   const badges = [];
 
   if (Number(property.rating) >= POPULAR_RATING) badges.push('Popular');
-  if (property.isVerified === true) badges.push('Verified');
   if (Number.isFinite(postedAt) && age >= 0 && age <= NEW_LISTING_WINDOW) badges.push('New listing');
 
   return (
@@ -77,6 +76,11 @@ function ListingArtwork({ property, index }) {
           </div>
           <span className="card-plant" />
         </>
+      )}
+      {property.isVerified === true && (
+        <span className="listing-verified-corner">
+          <span aria-hidden="true">✓</span> Verified owner
+        </span>
       )}
       {badges.length > 0 && (
         <div className="listing-tags" aria-label="Listing highlights">
@@ -251,6 +255,11 @@ function Home() {
                               <span className={`featured-photo-placeholder home-art-${['one', 'two', 'three'][index % 3]}`} />
                             )}
                             <span className="featured-shade" aria-hidden="true" />
+                            {property.isVerified === true && (
+                              <span className="listing-verified-corner listing-verified-featured">
+                                <span aria-hidden="true">✓</span> Verified owner
+                              </span>
+                            )}
                             <span className="featured-post-content">
                               {property.accommodation_type && (
                                 <span className="featured-category">{property.accommodation_type}</span>

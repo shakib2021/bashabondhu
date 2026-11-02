@@ -23,12 +23,16 @@ if (missingEnvironment.length > 0) {
 const port = Number(process.env.PORT) || 5000;
 
 mongoose.connect(process.env.MONGODB_URI)
-  .then(() => {
+  .then(async () => {
+    const migratedListings = await require('./src/models/Accommodation').migrateLegacyPhotos();
+    if (migratedListings > 0) {
+      console.log(`Migrated property images for ${migratedListings} listings.`);
+    }
     app.listen(port, () => {
       console.log(`BashaBondhu API listening on port ${port}`);
     });
   })
   .catch((error) => {
-    console.error('Could not connect to MongoDB:', error.message);
+    console.error('Could not prepare the MongoDB database:', error.message);
     process.exitCode = 1;
   });

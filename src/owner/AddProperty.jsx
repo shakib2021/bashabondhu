@@ -13,6 +13,9 @@ const accommodationTypes = [
 ];
 
 const listingStatuses = ['Available', 'Booked', 'Rented'];
+const MAX_PROPERTY_PHOTOS = 6;
+const MAX_PROPERTY_PHOTO_SIZE = 5 * 1024 * 1024;
+const MAX_TOTAL_PHOTO_SIZE = 12 * 1024 * 1024;
 const rentalGenders = [
   { value: 'men', label: 'Men' },
   { value: 'women', label: 'Women' },
@@ -22,6 +25,7 @@ const rentalGenders = [
 function AddProperty() {
   const { profile } = useOutletContext();
   const [preview, setPreview] = useState(null);
+  const [selectedPhotos, setSelectedPhotos] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -42,7 +46,7 @@ function AddProperty() {
       bedrooms: Number(values.get('bedrooms')),
       bathrooms: Number(values.get('bathrooms')),
       facilities: splitLines(values.get('facilities')),
-      images: splitLines(values.get('images')),
+      images: [],
       status: values.get('status'),
       gender: values.get('gender'),
       email: profile.email,
@@ -51,7 +55,7 @@ function AddProperty() {
     setIsSaving(true);
     setErrorMessage('');
     try {
-      const savedListing = await createProperty(listing);
+      const savedListing = await createProperty(listing, selectedPhotos);
       setPreview(savedListing);
       toast.success('Your listing has been saved.');
     } catch (error) {
@@ -162,9 +166,51 @@ function AddProperty() {
                 <textarea name="facilities" rows="3" placeholder={'One facility per line, e.g.\nWi-Fi\nParking'} />
               </label>
               <label className="owner-field owner-field-wide">
-                <span>Image URLs</span>
-                <textarea name="images" rows="3" placeholder={'One image URL per line'} />
+                <span>Property photos</span>
+                <input
+                  type="file"
+                  name="propertyPhotos"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  onChange={(event) => {
+                    const selected = Array.from(event.target.files || []);
+                    const oversizedFile = selected.find((file) => file.size > MAX_PROPERTY_PHOTO_SIZE);
+                    const combined = [...selectedPhotos, ...selected];
+                    const totalSize = combined.reduce((total, file) => total + file.size, 0);
+                    event.target.value = '';
+                    if (combined.length > MAX_PROPERTY_PHOTOS) {
+                      setErrorMessage('Choose up to 6 property photos.');
+                    } else if (oversizedFile) {
+                      setErrorMessage(`${oversizedFile.name} is larger than 5 MB.`);
+                    } else if (totalSize > MAX_TOTAL_PHOTO_SIZE) {
+                      setErrorMessage('Selected property photos must total 12 MB or less.');
+                    } else {
+                      setErrorMessage('');
+                      setSelectedPhotos(combined);
+                    }
+                  }}
+                />
+                <small>Choose up to 6 JPEG, PNG, or WebP photos (5 MB each, 12 MB total).</small>
               </label>
+              {selectedPhotos.length > 0 && (
+                <div className="owner-selected-photos owner-field-wide" role="status">
+                  <span>{selectedPhotos.length} photo{selectedPhotos.length === 1 ? '' : 's'} selected</span>
+                  <ul>
+                    {selectedPhotos.map((photo, index) => (
+                      <li key={`${photo.name}-${photo.size}-${photo.lastModified}-${index}`}>
+                        <span>{photo.name}</span>
+                        <button
+                          type="button"
+                          aria-label={`Remove ${photo.name}`}
+                          onClick={() => setSelectedPhotos((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+                        >
+                          Remove
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
 
@@ -182,11 +228,11 @@ function AddProperty() {
             <span className="owner-aside-icon" aria-hidden="true">✦</span>
             <span className="owner-eyebrow">A GOOD FIRST IMPRESSION</span>
             <h2>Make your listing feel like home.</h2>
-            <p>Accurate details help renters find a place that suits them. Add facilities and image URLs to make your listing more helpful.</p>
+            <p>Accurate details help renters find a place that suits them. Add facilities and clear property photos to make your listing more helpful.</p>
           </div>
           <div className="owner-aside-note">
             <span aria-hidden="true">✦</span>
-            <p>Enter each facility and image URL on its own line.</p>
+            <p>Enter each facility on its own line. Upload clear photos of the property.</p>
           </div>
           {preview && (
             <div className="owner-preview-card" role="status">
@@ -198,6 +244,13 @@ function AddProperty() {
               <p>{preview.status}</p>
               <p>{preview.gender === 'any' ? 'Any gender' : `For ${preview.gender}`}</p>
               <p>Rating: {preview.rating === 0 ? 'No rating' : preview.rating}</p>
+              {preview.images?.length > 0 && (
+                <div className="owner-saved-photos" aria-label="Uploaded property photos">
+                  {preview.images.map((image, index) => (
+                    <img key={`${image}-${index}`} src={image} alt={`Uploaded property ${index + 1}`} />
+                  ))}
+                </div>
+              )}
               <small>Saved to your properties.</small>
             </div>
           )}

@@ -2,11 +2,12 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'
 
 export async function requestApi(path, { token, ...options } = {}) {
   let response;
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       ...options,
       headers: {
-        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(options.body && !isFormData ? { 'Content-Type': 'application/json' } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers,
       },

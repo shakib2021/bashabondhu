@@ -426,6 +426,84 @@
   color: #43815b;
 }
 
+.owner-verification-panel {
+  margin-top: 20px;
+}
+
+.owner-verification-content {
+  padding: 20px;
+}
+
+.owner-verification-intro,
+.owner-verification-message {
+  margin: 0 0 16px;
+  color: #66766d;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.owner-verification-message {
+  padding: 12px 14px;
+  border-radius: 6px;
+  background: #f3f6f3;
+}
+
+.owner-verification-message.is-success {
+  background: #edf6ed;
+  color: #367651;
+}
+
+.owner-verification-message.is-error {
+  background: #fff3f0;
+  color: #a54132;
+}
+
+.owner-verification-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.owner-verification-form label {
+  display: grid;
+  gap: 7px;
+  color: #53665b;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.owner-verification-form input {
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #dfe7df;
+  border-radius: 6px;
+  color: #334d40;
+  font: inherit;
+}
+
+.owner-verification-form input[type="file"] {
+  background: #fbfcfb;
+}
+
+.owner-verification-form small {
+  color: #849087;
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.owner-verification-form > button,
+.owner-verification-form > p {
+  grid-column: 1 / -1;
+  justify-self: start;
+  margin-bottom: 0;
+}
+
+.owner-verification-form > button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
 .owner-request-list {
   padding: 0 20px;
 }
@@ -1122,6 +1200,64 @@
   line-height: 1.5;
 }
 
+.owner-selected-photos {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 7px;
+  color: #66766b;
+  font-size: 10px;
+}
+
+.owner-selected-photos ul {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.owner-selected-photos li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 9px;
+  border: 1px solid #e6ece6;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.owner-selected-photos li span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.owner-selected-photos button {
+  flex: 0 0 auto;
+  padding: 3px 6px;
+  border: 0;
+  background: transparent;
+  color: #a54b3e;
+  font: inherit;
+  cursor: pointer;
+}
+
+.owner-saved-photos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.owner-saved-photos img {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
 .owner-preview-card small {
   margin-top: 3px;
   color: #9b766a;
@@ -1258,6 +1394,10 @@
   }
 
   .owner-form-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .owner-verification-form {
     grid-template-columns: 1fr;
   }
 

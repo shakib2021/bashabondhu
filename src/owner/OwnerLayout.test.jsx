@@ -244,6 +244,14 @@ test('posts a property and shows its saved listing details', async () => {
   fireEvent.change(screen.getByLabelText(/area \/ neighborhood/i), { target: { value: 'Dhanmondi' } });
   fireEvent.change(screen.getByLabelText(/^city/i), { target: { value: 'Dhaka' } });
   fireEvent.change(screen.getByLabelText(/facilities/i), { target: { value: 'Wi-Fi\nParking' } });
+  const photo = new File(['image-bytes'], 'room.png', { type: 'image/png' });
+  const secondPhoto = new File(['kitchen-bytes'], 'kitchen.png', { type: 'image/png' });
+  const photoInput = screen.getByLabelText(/property photos/i);
+  fireEvent.change(photoInput, { target: { files: [photo] } });
+  fireEvent.change(photoInput, { target: { files: [secondPhoto] } });
+  expect(screen.getByRole('status')).toHaveTextContent('2 photos selected');
+  expect(screen.getByRole('status')).toHaveTextContent('room.png');
+  expect(screen.getByRole('status')).toHaveTextContent('kitchen.png');
   fireEvent.click(screen.getByRole('button', { name: /post listing/i }));
 
   expect(await screen.findByText('LISTING SAVED')).toBeInTheDocument();
@@ -253,5 +261,5 @@ test('posts a property and shows its saved listing details', async () => {
   expect(createProperty).toHaveBeenCalledWith(expect.objectContaining({
     title: 'Sunny rental room',
     email: 'owner@example.com',
-  }));
+  }), [photo, secondPhoto]);
 });

@@ -1,18 +1,44 @@
 import { getStoredUser } from './authStorage';
 import { requestApi } from './apiClient';
 
-export async function createProperty(property) {
+const API_ORIGIN = (process.env.REACT_APP_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
+
+export function normalizePropertyImages(property) {
+  if (!property || !Array.isArray(property.images)) return property;
+  return {
+    ...property,
+    images: property.images.map((image) => (
+      typeof image === 'string' && image.startsWith('/api/')
+        ? `${API_ORIGIN}${image}`
+        : image
+    )),
+  };
+}
+
+function normalizePropertyList(properties) {
+  return properties.map(normalizePropertyImages);
+}
+
+export async function createProperty(property, imageFiles = []) {
   const session = getStoredUser();
   if (!session?.token) {
     throw new Error('Your session has expired. Please sign in again.');
   }
 
+  let body = JSON.stringify(property);
+  if (imageFiles.length > 0) {
+    const formData = new FormData();
+    formData.append('property', JSON.stringify(property));
+    imageFiles.forEach((file) => formData.append('images', file));
+    body = formData;
+  }
+
   const result = await requestApi('/properties', {
     method: 'POST',
     token: session.token,
-    body: JSON.stringify(property),
+    body,
   });
-  return result.property;
+  return normalizePropertyImages(result.property);
 }
 
 export async function getMyProperties() {
@@ -25,7 +51,7 @@ export async function getMyProperties() {
   if (!Array.isArray(result.properties)) {
     throw new Error('The backend returned an invalid property list. Please try again.');
   }
-  return result.properties;
+  return normalizePropertyList(result.properties);
 }
 
 export async function getPublicProperties() {
@@ -33,7 +59,7 @@ export async function getPublicProperties() {
   if (!Array.isArray(result.properties)) {
     throw new Error('The backend returned an invalid property list. Please try again.');
   }
-  return result.properties;
+  return normalizePropertyList(result.properties);
 }
 
 export async function getPublicProperty(propertyId) {
@@ -41,7 +67,7 @@ export async function getPublicProperty(propertyId) {
   if (!result.property || !Array.isArray(result.property.comments)) {
     throw new Error('The backend returned invalid property details. Please try again.');
   }
-  return result.property;
+  return normalizePropertyImages(result.property);
 }
 
 export async function createPropertyComment(propertyId, text) {

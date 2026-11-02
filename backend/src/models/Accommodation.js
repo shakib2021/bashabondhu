@@ -36,7 +36,7 @@ const accommodationSchema = new mongoose.Schema({
   bedrooms: { type: Number, required: true, min: 1 },
   bathrooms: { type: Number, required: true, min: 1 },
   facilities: { type: [String], default: [] },
-  images: { type: [String], default: [] },
+  images: { type: [mongoose.Schema.Types.Mixed], default: [] },
   status: { type: String, enum: ['Available', 'Booked', 'Rented'], default: 'Available' },
   gender: { type: String, enum: ['men', 'women', 'any'], required: true },
   email: { type: String, required: true, lowercase: true, trim: true },
@@ -46,4 +46,27 @@ const accommodationSchema = new mongoose.Schema({
   contactRequests: { type: [contactRequestSchema], default: [] },
 }, { timestamps: true, collection: 'accopost' });
 
-module.exports = mongoose.model('Accommodation', accommodationSchema);
+const Accommodation = mongoose.model('Accommodation', accommodationSchema);
+
+Accommodation.migrateLegacyPhotos = async () => {
+  const result = await Accommodation.collection.updateMany(
+    { photos: { $exists: true } },
+    [
+      {
+        $set: {
+          images: {
+            $cond: [
+              { $gt: [{ $size: { $ifNull: ['$photos', []] } }, 0] },
+              '$photos',
+              '$images',
+            ],
+          },
+        },
+      },
+      { $unset: 'photos' },
+    ],
+  );
+  return result.modifiedCount;
+};
+
+module.exports = Accommodation;

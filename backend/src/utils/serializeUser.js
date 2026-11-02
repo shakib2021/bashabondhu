@@ -7,7 +7,9 @@ function serializeUser(user) {
     phone: user.phone || '',
     address: user.address || '',
     occupation: user.occupation || '',
-    isVerified: user.isVerified === true,
+    isVerified: user.role === 'owner'
+      ? user.ownerVerificationStatus === 'approved'
+      : user.isVerified === true,
     role: user.role,
     authProvider: user.authProvider,
   };

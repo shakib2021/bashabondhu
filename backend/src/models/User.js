@@ -57,6 +57,11 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  ownerVerificationStatus: {
+    type: String,
+    enum: ['unverified', 'pending', 'rejected', 'approved'],
+    default: 'unverified',
+  },
   notifications: { type: [notificationSchema], default: [] },
   watchlist: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Accommodation' }], default: [] },
   role: {

@@ -3,7 +3,10 @@ const express = require('express');
 const mongoose = require('mongoose');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
+const multer = require('multer');
 const Accommodation = require('./models/Accommodation');
+const OwnerVerification = require('./models/OwnerVerification');
+const PropertyImage = require('./models/PropertyImage');
 const PropertyReport = require('./models/PropertyReport');
 const User = require('./models/User');
 const { createAuthenticate } = require('./middleware/authenticate');
@@ -12,9 +15,32 @@ const { getVerifiedGoogleUser } = require('./utils/googleAuth');
 const { signAuthToken, verifyAuthToken } = require('./utils/authToken');
 const { serializeUser } = require('./utils/serializeUser');
 
+const MAX_PROPERTY_PHOTO_TOTAL_SIZE = 12 * 1024 * 1024;
+const isPropertyPhotoUploadWithinLimit = (files) => (
+  files.reduce((total, file) => total + file.size, 0) <= MAX_PROPERTY_PHOTO_TOTAL_SIZE
+);
+
+function getPropertyImageUrls(property) {
+  return (property.images || []).flatMap((image) => {
+    if (typeof image === 'string') return [image];
+    if (image?._id) return [`/api/property-images/${property._id}/${image._id}`];
+    return [];
+  });
+}
+
+function getImageBuffer(imageData) {
+  if (Buffer.isBuffer(imageData)) return imageData;
+  if (imageData && typeof imageData.value === 'function') {
+    return imageData.value(true);
+  }
+  return null;
+}
+
 function createApp({
   UserModel = User,
   AccommodationModel = Accommodation,
+  OwnerVerificationModel = OwnerVerification,
+  PropertyImageModel = PropertyImage,
   PropertyReportModel = PropertyReport,
   firebaseUserLookup = getVerifiedFirebaseUser,
   googleUserLookup = getVerifiedGoogleUser,
@@ -27,6 +53,91 @@ function createApp({
   const app = express();
   const allowedOrigins = new Set(clientOrigins.split(',').map((origin) => origin.trim()).filter(Boolean));
   const authenticate = createAuthenticate(tokenVerifier, jwtSecret);
+  const verificationUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 4 * 1024 * 1024, files: 2, fields: 2, fieldSize: 1024 },
+    fileFilter(req, file, callback) {
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
+        callback(new Error('Upload the NID images as JPEG, PNG, or WebP files.'));
+        return;
+      }
+      callback(null, true);
+    },
+  }).fields([{ name: 'frontImage', maxCount: 1 }, { name: 'backImage', maxCount: 1 }]);
+  const parseVerificationUpload = (req, res, next) => {
+    verificationUpload(req, res, (error) => {
+      if (!error) return next();
+      if (error instanceof multer.MulterError) {
+        const status = error.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+        return res.status(status).json({
+          success: false,
+          message: error.code === 'LIMIT_FILE_SIZE'
+            ? 'Each NID image must be 4 MB or smaller.'
+            : 'Upload one front image and one back image.',
+        });
+      }
+      if (error.message === 'Upload the NID images as JPEG, PNG, or WebP files.') {
+        return res.status(400).json({ success: false, message: error.message });
+      }
+      return next(error);
+    });
+  };
+  const verificationUploadLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 5,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    handler(req, res) {
+      return res.status(429).json({
+        success: false,
+        message: 'Too many verification submissions. Please try again later.',
+      });
+    },
+  });
+  const propertyImageUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024, files: 6, fields: 1, fieldSize: 20 * 1024 },
+    fileFilter(req, file, callback) {
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
+        callback(new Error('Upload property photos as JPEG, PNG, or WebP files.'));
+        return;
+      }
+      callback(null, true);
+    },
+  }).array('images', 6);
+  const parsePropertyImageUpload = (req, res, next) => {
+    propertyImageUpload(req, res, (error) => {
+      if (!error) return next();
+      if (error instanceof multer.MulterError) {
+        const status = error.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+        return res.status(status).json({
+          success: false,
+          message: error.code === 'LIMIT_FILE_SIZE'
+            ? 'Each property photo must be 5 MB or smaller, with up to 6 photos.'
+            : 'Upload up to 6 property photos.',
+        });
+      }
+      if (error.message === 'Upload property photos as JPEG, PNG, or WebP files.') {
+        return res.status(400).json({ success: false, message: error.message });
+      }
+      return next(error);
+    });
+  };
+  const isValidNidImage = (file) => {
+    const bytes = file.buffer;
+    if (file.mimetype === 'image/jpeg') {
+      return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+    }
+    if (file.mimetype === 'image/png') {
+      return bytes.length >= 8
+        && bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    }
+    return file.mimetype === 'image/webp'
+      && bytes.length >= 12
+      && bytes.toString('ascii', 0, 4) === 'RIFF'
+      && bytes.toString('ascii', 8, 12) === 'WEBP';
+  };
+  const isValidPropertyImage = isValidNidImage;
   const saveNotification = async (recipientId, actor, notification, recipientRole) => {
     if (!recipientId || String(recipientId) === String(actor._id)) {
       return;
@@ -262,6 +373,231 @@ function createApp({
     }
   });
 
+  app.get('/api/owner/verification', authenticate, async (req, res, next) => {
+    try {
+      const user = await UserModel.findById(req.userId);
+      if (!user || user.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      if (user.role !== 'owner') {
+        return res.status(403).json({ success: false, message: 'Only property owners can request verification.' });
+      }
+
+      const verification = await OwnerVerificationModel.findOne({ ownerId: user._id });
+      return res.json({
+        success: true,
+        verification: verification ? {
+          status: verification.status,
+          rejectionReason: verification.status === 'rejected' ? verification.rejectionReason : '',
+          submittedAt: verification.submittedAt || verification.createdAt,
+        } : { status: 'unverified', rejectionReason: '', submittedAt: null },
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.post('/api/owner/verification', authenticate, verificationUploadLimiter, parseVerificationUpload, async (req, res, next) => {
+    try {
+      const user = await UserModel.findById(req.userId);
+      if (!user || user.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      if (user.role !== 'owner') {
+        return res.status(403).json({ success: false, message: 'Only property owners can request verification.' });
+      }
+
+      const existing = await OwnerVerificationModel.findOne({ ownerId: user._id });
+      if (existing?.status === 'pending' || user.ownerVerificationStatus === 'approved') {
+        return res.status(409).json({
+          success: false,
+          message: existing?.status === 'pending'
+            ? 'Your verification request is already being reviewed.'
+            : 'Your owner account is already verified.',
+        });
+      }
+
+      const nidName = typeof req.body.nidName === 'string' ? req.body.nidName.trim() : '';
+      const nidNumber = typeof req.body.nidNumber === 'string'
+        ? req.body.nidNumber.replace(/[\s-]/g, '')
+        : '';
+      const frontImage = req.files?.frontImage?.[0];
+      const backImage = req.files?.backImage?.[0];
+      if (!nidName || nidName.length > 255) {
+        return res.status(400).json({ success: false, message: 'Enter the name printed on your NID (up to 255 characters).' });
+      }
+      if (!/^(?:\d{10}|\d{13}|\d{17})$/.test(nidNumber)) {
+        return res.status(400).json({ success: false, message: 'Enter a valid 10, 13, or 17 digit NID number.' });
+      }
+      if (!frontImage || !backImage) {
+        return res.status(400).json({ success: false, message: 'Upload both the front and back of your NID.' });
+      }
+      if (!isValidNidImage(frontImage) || !isValidNidImage(backImage)) {
+        return res.status(400).json({ success: false, message: 'The uploaded files must be valid JPEG, PNG, or WebP images.' });
+      }
+
+      const verification = await OwnerVerificationModel.findOneAndUpdate(
+        { ownerId: user._id },
+        {
+          $set: {
+            nidName,
+            nidNumber,
+            frontImage: frontImage.buffer,
+            frontMimeType: frontImage.mimetype,
+            backImage: backImage.buffer,
+            backMimeType: backImage.mimetype,
+            status: 'pending',
+            rejectionReason: '',
+            submittedAt: new Date(),
+            reviewedAt: null,
+            reviewedBy: null,
+          },
+          $setOnInsert: { ownerId: user._id },
+        },
+        { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true },
+      );
+      await UserModel.findOneAndUpdate(
+        { _id: user._id, accountStatus: 'active' },
+        { $set: { isVerified: false, ownerVerificationStatus: 'pending' } },
+        { new: true, runValidators: true },
+      );
+
+      return res.status(201).json({
+        success: true,
+        message: 'Your NID has been submitted for review.',
+        verification: { status: verification.status, submittedAt: verification.submittedAt },
+      });
+    } catch (error) {
+      if (error.code === 11000) {
+        return res.status(409).json({
+          success: false,
+          message: 'A verification request already exists. Refresh your status and try again.',
+        });
+      }
+      return next(error);
+    }
+  });
+
+  app.get('/api/admin/owner-verifications', authenticate, async (req, res, next) => {
+    try {
+      const admin = await UserModel.findById(req.userId);
+      if (!admin || admin.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      if (admin.role !== 'admin') {
+        return res.status(403).json({ success: false, message: 'Only admins can review owner verifications.' });
+      }
+
+      const status = req.query.status || 'pending';
+      if (!['pending', 'approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ success: false, message: 'Choose a valid verification status.' });
+      }
+      const verifications = await OwnerVerificationModel.find({ status })
+        .sort({ createdAt: -1 })
+        .limit(100)
+        .populate('ownerId', 'fullName email')
+        .lean();
+      return res.json({
+        success: true,
+        verifications: verifications.map((verification) => ({
+          id: String(verification._id),
+          owner: {
+            id: String(verification.ownerId?._id || verification.ownerId),
+            fullName: verification.ownerId?.fullName || '',
+            email: verification.ownerId?.email || '',
+          },
+          nidName: verification.nidName,
+          nidNumber: verification.nidNumber,
+          status: verification.status,
+          submittedAt: verification.submittedAt || verification.createdAt,
+        })),
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.get('/api/admin/owner-verifications/:verificationId/documents/:side', authenticate, async (req, res, next) => {
+    try {
+      const admin = await UserModel.findById(req.userId);
+      if (!admin || admin.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      if (admin.role !== 'admin') {
+        return res.status(403).json({ success: false, message: 'Only admins can view NID documents.' });
+      }
+      if (!mongoose.isValidObjectId(req.params.verificationId) || !['front', 'back'].includes(req.params.side)) {
+        return res.status(404).json({ success: false, message: 'NID document not found.' });
+      }
+
+      const verification = await OwnerVerificationModel.findById(req.params.verificationId);
+      const image = verification?.[`${req.params.side}Image`];
+      const mimeType = verification?.[`${req.params.side}MimeType`];
+      if (!image || !['image/jpeg', 'image/png', 'image/webp'].includes(mimeType)) {
+        return res.status(404).json({ success: false, message: 'NID document not found.' });
+      }
+
+      res.set({
+        'Cache-Control': 'private, no-store',
+        'Content-Disposition': 'inline',
+        'X-Content-Type-Options': 'nosniff',
+      });
+      return res.type(mimeType).send(image);
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.patch('/api/admin/owner-verifications/:verificationId', authenticate, async (req, res, next) => {
+    try {
+      const admin = await UserModel.findById(req.userId);
+      if (!admin || admin.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      if (admin.role !== 'admin') {
+        return res.status(403).json({ success: false, message: 'Only admins can review owner verifications.' });
+      }
+      if (!mongoose.isValidObjectId(req.params.verificationId)) {
+        return res.status(404).json({ success: false, message: 'Verification request not found.' });
+      }
+      if (!['approve', 'reject'].includes(req.body.decision)) {
+        return res.status(400).json({ success: false, message: 'Choose approve or reject.' });
+      }
+      const rejectionReason = typeof req.body.rejectionReason === 'string'
+        ? req.body.rejectionReason.trim()
+        : '';
+      if (req.body.decision === 'reject' && (!rejectionReason || rejectionReason.length > 500)) {
+        return res.status(400).json({ success: false, message: 'Provide a rejection reason of up to 500 characters.' });
+      }
+
+      const status = req.body.decision === 'approve' ? 'approved' : 'rejected';
+      const verification = await OwnerVerificationModel.findOneAndUpdate(
+        { _id: req.params.verificationId, status: 'pending' },
+        {
+          $set: {
+            status,
+            rejectionReason: status === 'rejected' ? rejectionReason : '',
+            reviewedAt: new Date(),
+            reviewedBy: admin._id,
+          },
+        },
+        { new: true, runValidators: true },
+      );
+      if (!verification) {
+        return res.status(404).json({ success: false, message: 'Pending verification request not found.' });
+      }
+
+      await UserModel.findOneAndUpdate(
+        { _id: verification.ownerId },
+        { $set: { isVerified: status === 'approved', ownerVerificationStatus: status } },
+        { new: true, runValidators: true },
+      );
+      return res.json({ success: true, message: `Owner verification ${status}.`, status });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
   app.post('/api/properties/:propertyId/reports', authenticate, async (req, res, next) => {
     try {
       if (!mongoose.isValidObjectId(req.params.propertyId)) {
@@ -340,7 +676,205 @@ function createApp({
         .sort({ createdAt: -1 })
         .limit(100)
         .lean();
-      return res.json({ success: true, reports });
+      return res.json({
+        success: true,
+        reports: reports.map((report) => ({
+          id: String(report._id),
+          propertyId: String(report.propertyId),
+          propertyTitle: report.propertyTitle,
+          reporterId: String(report.reporterId),
+          category: report.category,
+          details: report.details || '',
+          status: report.status || 'pending',
+          createdAt: report.createdAt,
+        })),
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.get('/api/admin/summary', authenticate, async (req, res, next) => {
+    try {
+      const admin = await UserModel.findById(req.userId);
+      if (!admin || admin.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      if (admin.role !== 'admin') {
+        return res.status(403).json({ success: false, message: 'Only admins can view the admin dashboard.' });
+      }
+
+      const [users, posts, pendingReports, pendingVerifications] = await Promise.all([
+        UserModel.countDocuments({ role: { $in: ['tenant', 'owner'] } }),
+        AccommodationModel.countDocuments({}),
+        PropertyReportModel.countDocuments({ status: 'pending' }),
+        OwnerVerificationModel.countDocuments({ status: 'pending' }),
+      ]);
+      return res.json({
+        success: true,
+        summary: { users, posts, pendingReports, pendingVerifications },
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.get('/api/admin/users', authenticate, async (req, res, next) => {
+    try {
+      const admin = await UserModel.findById(req.userId);
+      if (!admin || admin.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      if (admin.role !== 'admin') {
+        return res.status(403).json({ success: false, message: 'Only admins can manage users.' });
+      }
+
+      const users = await UserModel.find({})
+        .sort({ createdAt: -1 })
+        .limit(200)
+        .lean();
+      return res.json({
+        success: true,
+        users: users.map((user) => ({
+          id: String(user._id),
+          fullName: user.fullName,
+          email: user.email,
+          phone: user.phone || '',
+          role: user.role,
+          accountStatus: user.accountStatus,
+          isVerified: user.role === 'owner'
+            ? user.ownerVerificationStatus === 'approved'
+            : user.isVerified === true,
+          createdAt: user.createdAt,
+        })),
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.patch('/api/admin/users/:userId/status', authenticate, async (req, res, next) => {
+    try {
+      const admin = await UserModel.findById(req.userId);
+      if (!admin || admin.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      if (admin.role !== 'admin') {
+        return res.status(403).json({ success: false, message: 'Only admins can manage users.' });
+      }
+      if (!mongoose.isValidObjectId(req.params.userId)) {
+        return res.status(404).json({ success: false, message: 'User not found.' });
+      }
+      if (!['active', 'suspended'].includes(req.body.accountStatus)) {
+        return res.status(400).json({ success: false, message: 'Account status must be active or suspended.' });
+      }
+      if (String(admin._id) === req.params.userId) {
+        return res.status(400).json({ success: false, message: 'You cannot change your own account status.' });
+      }
+
+      const user = await UserModel.findOneAndUpdate(
+        { _id: req.params.userId, role: { $ne: 'admin' } },
+        { $set: { accountStatus: req.body.accountStatus } },
+        { new: true, runValidators: true },
+      );
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found or cannot be managed.' });
+      }
+      return res.json({
+        success: true,
+        user: { id: String(user._id), accountStatus: user.accountStatus },
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.get('/api/admin/posts', authenticate, async (req, res, next) => {
+    try {
+      const admin = await UserModel.findById(req.userId);
+      if (!admin || admin.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      if (admin.role !== 'admin') {
+        return res.status(403).json({ success: false, message: 'Only admins can manage posts.' });
+      }
+
+      const posts = await AccommodationModel.find({})
+        .sort({ createdAt: -1 })
+        .limit(200)
+        .populate('ownerId', 'fullName email')
+        .lean();
+      return res.json({
+        success: true,
+        posts: posts.map((post) => ({
+          id: String(post._id),
+          title: post.title,
+          city: post.city,
+          location: post.location,
+          monthlyRent: post.monthly_rent,
+          status: post.status,
+          createdAt: post.createdAt,
+          owner: {
+            id: String(post.ownerId?._id || post.ownerId || ''),
+            fullName: post.ownerId?.fullName || '',
+            email: post.ownerId?.email || '',
+          },
+        })),
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.delete('/api/admin/posts/:postId', authenticate, async (req, res, next) => {
+    try {
+      const admin = await UserModel.findById(req.userId);
+      if (!admin || admin.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      if (admin.role !== 'admin') {
+        return res.status(403).json({ success: false, message: 'Only admins can remove posts.' });
+      }
+      if (!mongoose.isValidObjectId(req.params.postId)) {
+        return res.status(404).json({ success: false, message: 'Post not found.' });
+      }
+
+      const post = await AccommodationModel.findByIdAndDelete(req.params.postId);
+      if (!post) {
+        return res.status(404).json({ success: false, message: 'Post not found.' });
+      }
+      await PropertyImageModel.deleteMany({ propertyId: post._id });
+      return res.json({ success: true, message: 'Post removed.' });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.patch('/api/admin/reports/:reportId', authenticate, async (req, res, next) => {
+    try {
+      const admin = await UserModel.findById(req.userId);
+      if (!admin || admin.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      if (admin.role !== 'admin') {
+        return res.status(403).json({ success: false, message: 'Only admins can review property reports.' });
+      }
+      if (!mongoose.isValidObjectId(req.params.reportId)) {
+        return res.status(404).json({ success: false, message: 'Report not found.' });
+      }
+      if (!['reviewed', 'dismissed'].includes(req.body.status)) {
+        return res.status(400).json({ success: false, message: 'Choose reviewed or dismissed.' });
+      }
+
+      const report = await PropertyReportModel.findOneAndUpdate(
+        { _id: req.params.reportId, status: 'pending' },
+        { $set: { status: req.body.status } },
+        { new: true, runValidators: true },
+      );
+      if (!report) {
+        return res.status(404).json({ success: false, message: 'Pending report not found.' });
+      }
+      return res.json({ success: true, status: report.status });
     } catch (error) {
       return next(error);
     }
@@ -391,7 +925,7 @@ function createApp({
         status: 'Available',
       })
         .sort({ createdAt: -1 })
-        .populate('ownerId', 'isVerified')
+        .populate('ownerId', 'ownerVerificationStatus')
         .lean();
 
       return res.json({
@@ -408,11 +942,11 @@ function createApp({
           number_of_rooms: property.number_of_rooms,
           bedrooms: property.bedrooms,
           bathrooms: property.bathrooms,
-          images: property.images,
+          images: getPropertyImageUrls(property),
           gender: property.gender,
           rating: property.rating,
           createdAt: property.createdAt,
-          isVerified: property.ownerId?.isVerified === true,
+          isVerified: property.ownerId?.ownerVerificationStatus === 'approved',
         })),
       });
     } catch (error) {
@@ -611,7 +1145,7 @@ function createApp({
     }
   });
 
-  app.post('/api/properties', authenticate, async (req, res, next) => {
+  app.post('/api/properties', authenticate, parsePropertyImageUpload, async (req, res, next) => {
     try {
       const user = await UserModel.findById(req.userId);
       if (!user || user.accountStatus !== 'active') {
@@ -621,27 +1155,121 @@ function createApp({
         return res.status(403).json({ success: false, message: 'Only property owners can create listings.' });
       }
 
+      let propertyData = req.body;
+      if (req.is('multipart/form-data')) {
+        try {
+          propertyData = JSON.parse(req.body.property || '{}');
+        } catch {
+          return res.status(400).json({ success: false, message: 'Property details must contain valid JSON.' });
+        }
+      }
+      const uploadedImages = req.files || [];
+      if (uploadedImages.some((file) => !isValidPropertyImage(file))) {
+        return res.status(400).json({ success: false, message: 'The uploaded files must be valid JPEG, PNG, or WebP images.' });
+      }
+      if (!isPropertyPhotoUploadWithinLimit(uploadedImages)) {
+        return res.status(413).json({
+          success: false,
+          message: 'Property photos must total 12 MB or less per listing.',
+        });
+      }
+      if (propertyData.images !== undefined && !Array.isArray(propertyData.images)) {
+        return res.status(400).json({ success: false, message: 'Property image URLs must be a list.' });
+      }
+      if ((propertyData.images || []).some((image) => typeof image !== 'string')) {
+        return res.status(400).json({ success: false, message: 'Property images must be uploaded as image files.' });
+      }
+      if (propertyData.facilities !== undefined && !Array.isArray(propertyData.facilities)) {
+        return res.status(400).json({ success: false, message: 'Property facilities must be a list.' });
+      }
+
       const property = await AccommodationModel.create({
-        title: req.body.title,
-        description: req.body.description || '',
-        accommodation_type: req.body.accommodation_type,
-        city: req.body.city,
-        location: req.body.location,
-        address: req.body.address || '',
-        monthly_rent: req.body.monthly_rent,
-        number_of_rooms: req.body.number_of_rooms,
-        bedrooms: req.body.bedrooms,
-        bathrooms: req.body.bathrooms,
-        facilities: req.body.facilities || [],
-        images: req.body.images || [],
-        status: req.body.status || 'Available',
-        gender: req.body.gender,
+        title: propertyData.title,
+        description: propertyData.description || '',
+        accommodation_type: propertyData.accommodation_type,
+        city: propertyData.city,
+        location: propertyData.location,
+        address: propertyData.address || '',
+        monthly_rent: propertyData.monthly_rent,
+        number_of_rooms: propertyData.number_of_rooms,
+        bedrooms: propertyData.bedrooms,
+        bathrooms: propertyData.bathrooms,
+        facilities: propertyData.facilities || [],
+        images: [
+          ...(propertyData.images || []),
+          ...uploadedImages.map((file) => ({
+            _id: new mongoose.Types.ObjectId(),
+            data: mongoose.mongo.BSON.Binary.createFromBase64(file.buffer.toString('base64')),
+            mimeType: file.mimetype,
+          })),
+        ],
+        status: propertyData.status || 'Available',
+        gender: propertyData.gender,
         email: user.email,
         rating: 0,
         ownerId: user._id,
       });
 
-      return res.status(201).json({ success: true, property });
+      return res.status(201).json({
+        success: true,
+        property: { ...property.toObject(), images: getPropertyImageUrls(property) },
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.get('/api/property-images/:propertyId/:photoId', async (req, res, next) => {
+    try {
+      if (
+        !mongoose.isValidObjectId(req.params.propertyId)
+        || !mongoose.isValidObjectId(req.params.photoId)
+      ) {
+        return res.status(404).json({ success: false, message: 'Property image not found.' });
+      }
+
+      const property = await AccommodationModel.findById(req.params.propertyId);
+      const image = property?.images?.find((item) => (
+        item && typeof item === 'object' && String(item._id) === req.params.photoId
+      ));
+      const imageBuffer = image ? getImageBuffer(image.data) : null;
+      if (
+        !imageBuffer
+        || !['image/jpeg', 'image/png', 'image/webp'].includes(image.mimeType)
+      ) {
+        return res.status(404).json({ success: false, message: 'Property image not found.' });
+      }
+      res.set({
+        'Cache-Control': 'public, max-age=86400',
+        'Cross-Origin-Resource-Policy': 'cross-origin',
+        'X-Content-Type-Options': 'nosniff',
+      });
+      return res.type(image.mimeType).send(imageBuffer);
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.get('/api/property-images/:imageId', async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.imageId)) {
+        return res.status(404).json({ success: false, message: 'Property image not found.' });
+      }
+
+      const image = await PropertyImageModel.findById(req.params.imageId);
+      if (!image || !['image/jpeg', 'image/png', 'image/webp'].includes(image.mimeType)) {
+        return res.status(404).json({ success: false, message: 'Property image not found.' });
+      }
+      const property = await AccommodationModel.findById(image.propertyId).lean();
+      if (!property) {
+        return res.status(404).json({ success: false, message: 'Property image not found.' });
+      }
+      res.set({
+        'Cache-Control': 'public, max-age=86400',
+        'Cross-Origin-Resource-Policy': 'cross-origin',
+        'X-Content-Type-Options': 'nosniff',
+      });
+      return res.type(image.mimeType).send(image.data);
     } catch (error) {
       return next(error);
     }
@@ -658,7 +1286,13 @@ function createApp({
       }
 
       const properties = await AccommodationModel.find({ ownerId: user._id }).sort({ createdAt: -1 }).lean();
-      return res.json({ success: true, properties });
+      return res.json({
+        success: true,
+        properties: properties.map((property) => ({
+          ...property,
+          images: getPropertyImageUrls(property),
+        })),
+      });
     } catch (error) {
       return next(error);
     }
@@ -671,7 +1305,7 @@ function createApp({
       }
 
       const property = await AccommodationModel.findById(req.params.propertyId)
-        .populate('ownerId', 'fullName isVerified')
+        .populate('ownerId', 'fullName ownerVerificationStatus')
         .lean();
       if (!property || property.status !== 'Available') {
         return res.status(404).json({ success: false, message: 'Property not found.' });
@@ -692,13 +1326,13 @@ function createApp({
           bedrooms: property.bedrooms,
           bathrooms: property.bathrooms,
           facilities: property.facilities,
-          images: property.images,
+          images: getPropertyImageUrls(property),
           gender: property.gender,
           rating: property.rating,
           createdAt: property.createdAt,
           owner: {
             fullName: property.ownerId?.fullName || 'Property owner',
-            isVerified: property.ownerId?.isVerified === true,
+            isVerified: property.ownerId?.ownerVerificationStatus === 'approved',
           },
           comments: (property.comments || []).map((comment) => ({
             _id: comment._id,
@@ -1002,7 +1636,7 @@ function createApp({
     try {
       const properties = await AccommodationModel.find({ status: 'Available' })
         .sort({ createdAt: -1 })
-        .populate('ownerId', 'isVerified')
+        .populate('ownerId', 'ownerVerificationStatus')
         .lean();
 
       const publicProperties = properties.map((property) => ({
@@ -1017,11 +1651,11 @@ function createApp({
         number_of_rooms: property.number_of_rooms,
         bedrooms: property.bedrooms,
         bathrooms: property.bathrooms,
-        images: property.images,
+        images: getPropertyImageUrls(property),
         gender: property.gender,
         rating: property.rating,
         createdAt: property.createdAt,
-        isVerified: property.ownerId?.isVerified === true,
+        isVerified: property.ownerId?.ownerVerificationStatus === 'approved',
       }));
 
       return res.json({ success: true, properties: publicProperties });
@@ -1056,3 +1690,4 @@ function createApp({
 
 module.exports = createApp();
 module.exports.createApp = createApp;
+module.exports.isPropertyPhotoUploadWithinLimit = isPropertyPhotoUploadWithinLimit;

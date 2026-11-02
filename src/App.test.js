@@ -100,6 +100,18 @@ test('renders the home page and main navigation', () => {
   expect(screen.getByRole('link', { name: /register/i })).toHaveAttribute('href', '/register');
 });
 
+test('shows administrators a link back to the admin dashboard from home', () => {
+  localStorage.setItem('bashabondhu.user', JSON.stringify({
+    email: 'admin@example.com',
+    role: 'admin',
+    token: 'signed-token',
+  }));
+
+  render(<App />);
+
+  expect(screen.getByRole('link', { name: /open your dashboard/i })).toHaveAttribute('href', '/admin');
+});
+
 test('cycles through featured homes in the home page carousel', async () => {
   getPublicProperties.mockResolvedValueOnce([
     {
@@ -264,7 +276,7 @@ test('shows posted homes with badges based on rating, verification, and post age
       rating: 4.7,
       isVerified: true,
       createdAt: new Date().toISOString(),
-      images: [],
+      images: ['http://localhost:5000/api/property-images/650000000000000000000079'],
     },
     {
       _id: 'older-unverified',
@@ -288,13 +300,70 @@ test('shows posted homes with badges based on rating, verification, and post age
   const homesSection = within(document.getElementById('homes'));
   expect(await homesSection.findByRole('heading', { name: 'Bright Dhanmondi room' })).toBeInTheDocument();
   expect(homesSection.getByText('Popular')).toBeInTheDocument();
-  expect(homesSection.getByText('Verified')).toBeInTheDocument();
+  expect(homesSection.getAllByText('Verified owner').length).toBeGreaterThan(0);
+  expect(document.getElementById('homes').querySelector('.listing-verified-corner')).toBeInTheDocument();
+  expect(document.getElementById('homes').querySelector('.listing-photo')).toHaveAttribute(
+    'src',
+    'http://localhost:5000/api/property-images/650000000000000000000079',
+  );
   expect(homesSection.getByText('New listing')).toBeInTheDocument();
   expect(homesSection.getByText('৳ 18,500')).toBeInTheDocument();
   const olderCard = homesSection.getByRole('heading', { name: 'Older Gulshan sublet' }).closest('.home-card');
   expect(olderCard).not.toHaveTextContent('Popular');
   expect(olderCard).not.toHaveTextContent('Verified');
   expect(olderCard).not.toHaveTextContent('New listing');
+});
+
+test('browses every property photo from the details gallery', async () => {
+  const property = {
+    _id: 'property-gallery',
+    title: 'Bright Dhanmondi room',
+    accommodation_type: 'Rental room',
+    location: 'Dhanmondi',
+    city: 'Dhaka',
+    monthly_rent: 18500,
+    number_of_rooms: 1,
+    bedrooms: 1,
+    bathrooms: 1,
+    images: [
+      'http://localhost:5000/api/property-images/property-gallery/photo-one',
+      'http://localhost:5000/api/property-images/property-gallery/photo-two',
+      'http://localhost:5000/api/property-images/property-gallery/photo-three',
+    ],
+    gender: 'any',
+    rating: 0,
+    createdAt: new Date().toISOString(),
+    owner: { fullName: 'Amina Owner', isVerified: false },
+    comments: [],
+  };
+  getPublicProperties.mockResolvedValueOnce([property]);
+  getPublicProperty.mockResolvedValueOnce(property);
+
+  render(<App />);
+
+  fireEvent.click(await within(document.getElementById('homes')).findByRole('link', {
+    name: 'View Bright Dhanmondi room',
+  }));
+  const galleryImage = await screen.findByRole('img', {
+    name: 'Bright Dhanmondi room, 1 of 3',
+  });
+  expect(galleryImage).toHaveAttribute('src', property.images[0]);
+  expect(screen.getByText('1 / 3')).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Next property photo' }));
+  expect(screen.getByRole('img', {
+    name: 'Bright Dhanmondi room, 2 of 3',
+  })).toHaveAttribute('src', property.images[1]);
+  expect(screen.getByText('2 / 3')).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Show property photo 3' }));
+  expect(screen.getByRole('img', {
+    name: 'Bright Dhanmondi room, 3 of 3',
+  })).toHaveAttribute('src', property.images[2]);
+  expect(screen.getByRole('button', { name: 'Show property photo 3' })).toHaveAttribute('aria-pressed', 'true');
+
+  fireEvent.click(screen.getByRole('button', { name: 'Previous property photo' }));
+  expect(screen.getByText('2 / 3')).toBeInTheDocument();
 });
 
 test('opens a home card, posts a comment, and replies beneath it', async () => {

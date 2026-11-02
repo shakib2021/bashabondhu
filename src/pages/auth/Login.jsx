@@ -32,7 +32,7 @@ function Login() {
     setIsWorking(true);
     try {
       const user = await loginGoogleUser(tokenResponse.access_token);
-      const dashboard = user.role === 'owner' ? '/owner' : user.role === 'admin' ? '/' : '/tenant/dashboard';
+      const dashboard = user.role === 'owner' ? '/owner' : user.role === 'admin' ? '/admin' : '/tenant/dashboard';
       navigate(returnTo === '/' ? dashboard : returnTo, { replace: true });
     } catch (error) {
       setAuthMessage(error.message || 'Could not sign in. Please try again.');
@@ -74,7 +74,7 @@ function Login() {
         return;
       }
       const user = await loginFirebaseUser(await credential.user.getIdToken());
-      const dashboard = user.role === 'owner' ? '/owner' : user.role === 'admin' ? '/' : '/tenant/dashboard';
+      const dashboard = user.role === 'owner' ? '/owner' : user.role === 'admin' ? '/admin' : '/tenant/dashboard';
       navigate(returnTo === '/' ? dashboard : returnTo, { replace: true });
     } catch (error) {
       setAuthMessage(getFirebaseAuthErrorMessage(error, 'Could not sign in. Please try again.'));

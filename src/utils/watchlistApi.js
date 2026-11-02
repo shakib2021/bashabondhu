@@ -1,5 +1,6 @@
 import { getStoredUser } from './authStorage';
 import { requestApi } from './apiClient';
+import { normalizePropertyImages } from './propertyApi';
 
 function getSessionToken() {
   const session = getStoredUser();
@@ -14,7 +15,7 @@ export async function getMyWatchlist() {
   if (!Array.isArray(result.properties)) {
     throw new Error('The backend returned an invalid watchlist. Please try again.');
   }
-  return result.properties;
+  return result.properties.map(normalizePropertyImages);
 }
 
 export async function setPropertyWatched(propertyId, watched) {

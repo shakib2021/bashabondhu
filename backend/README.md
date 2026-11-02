@@ -24,6 +24,18 @@ If Node.js reports `querySrv ECONNREFUSED`, set optional `MONGODB_DNS_SERVERS` t
 - `POST /api/auth/firebase/login` — body: `{ "idToken": "..." }`. Requires an existing Firebase-linked app profile.
 - `GET /api/users/me` — requires `Authorization: Bearer <token>`.
 - `PUT /api/users/me` — requires the same bearer token; accepts `fullName`, `profileImage`, `phone`, `address`, and `occupation`.
+- `GET /api/owner/verification` — owners can check their verification status without exposing their NID details.
+- `POST /api/owner/verification` — owners submit `nidName`, `nidNumber`, `frontImage`, and `backImage` as multipart form data. NID numbers may contain 10, 13, or 17 digits; each JPEG, PNG, or WebP image is limited to 4 MB.
+- `GET /api/admin/owner-verifications` — admins can view the pending verification queue and submitted NID details.
+- `GET /api/admin/owner-verifications/:verificationId/documents/:side` — admins only; privately serves the `front` or `back` NID image with caching disabled.
+- `PATCH /api/admin/owner-verifications/:verificationId` — admins approve with `{ "decision": "approve" }` or reject with `{ "decision": "reject", "rejectionReason": "..." }`.
+- `GET /api/admin/summary` — admin dashboard counts for users, property posts, pending reports, and pending verifications.
+- `GET /api/admin/users` and `PATCH /api/admin/users/:userId/status` — admins can list accounts and suspend/reactivate non-admin users.
+- `GET /api/admin/posts` and `DELETE /api/admin/posts/:postId` — admins can list and permanently remove property posts.
+- `PATCH /api/admin/reports/:reportId` — admins mark a pending report `reviewed` or `dismissed`.
+- `POST /api/properties` — owners can create listings using JSON or multipart form data. Multipart requests send a `property` JSON field and up to 6 `images` files (JPEG, PNG, or WebP; up to 5 MB each and 12 MB combined).
+- `GET /api/property-images/:propertyId/:photoId` — serves a listing image stored in the `images` array as its original image type.
+- `GET /api/property-images/:imageId` — serves legacy photos stored in the separate property-image collection.
 - `GET /api/users/me/watchlist` — returns the signed-in user's saved available listings.
 - `PUT /api/users/me/watchlist/:propertyId` — requires `{ "watched": true | false }` to save or remove an available listing.
 - `POST /api/properties/:propertyId/reports` — authenticated users can submit a report with a category and optional details.
@@ -31,3 +43,7 @@ If Node.js reports `querySrv ECONNREFUSED`, set optional `MONGODB_DNS_SERVERS` t
 - `GET /api/health` — health check.
 
 Successful login/registration responses include `{ "success": true, "user": {...}, "token": "..." }`. MongoDB remains the source of truth for account roles and profile details.
+
+Owner NID documents are stored as private MongoDB binary data and are not included in public listing or profile responses. Only an admin's authenticated document route can return them. A public verified-owner badge is enabled only after an admin approves the submitted NID; email verification alone does not grant the badge.
+
+New property photos are stored as BSON binary entries in the listing's `images` array in the `accopost` collection. The API turns each binary entry into an image URL in its responses without returning the binary bytes in listing JSON. On backend startup, images from the old `photos` field are migrated into `images` and the old field is removed. Uploads are limited to 12 MB combined so the listing stays below MongoDB's 16 MB document limit. Photos previously stored in the separate property-image collection remain available through the legacy image route. Public listing responses show a verified-owner badge only when the listing owner's NID verification has been approved.

@@ -522,6 +522,44 @@
   color: #547b93;
 }
 
+.listing-verified-corner {
+  position: absolute;
+  z-index: 3;
+  right: 12px;
+  bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 10px;
+  border: 1px solid rgb(255 255 255 / 75%);
+  border-radius: 999px;
+  background: #f5fff7;
+  box-shadow: 0 3px 12px rgb(21 55 35 / 20%);
+  color: #246842;
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.listing-verified-corner > span {
+  display: grid;
+  width: 15px;
+  height: 15px;
+  place-items: center;
+  border-radius: 50%;
+  background: #37845a;
+  color: #fff;
+  font-size: 9px;
+}
+
+.listing-verified-featured {
+  top: 20px;
+  right: 24px;
+  bottom: auto;
+  border-color: rgb(255 255 255 / 35%);
+  background: rgb(248 255 249 / 95%);
+}
+
 .listing-photo {
   position: absolute;
   inset: 0;

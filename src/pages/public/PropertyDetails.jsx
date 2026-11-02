@@ -25,6 +25,7 @@ function PropertyDetails() {
   const { propertyId } = useParams();
   const location = useLocation();
   const [property, setProperty] = useState(null);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [loadStatus, setLoadStatus] = useState('loading');
   const [errorMessage, setErrorMessage] = useState('');
   const [commentText, setCommentText] = useState('');
@@ -51,6 +52,7 @@ function PropertyDetails() {
       .then((listing) => {
         if (isMounted) {
           setProperty(listing);
+          setActiveImageIndex(0);
           setLoadStatus('ready');
         }
       })
@@ -169,6 +171,16 @@ function PropertyDetails() {
     }
   };
 
+  const propertyImages = (property?.images || []).filter(
+    (image) => typeof image === 'string' && image.length > 0,
+  );
+  const showPreviousImage = () => {
+    setActiveImageIndex((index) => (index - 1 + propertyImages.length) % propertyImages.length);
+  };
+  const showNextImage = () => {
+    setActiveImageIndex((index) => (index + 1) % propertyImages.length);
+  };
+
   return (
     <>
       <Navbar />
@@ -186,16 +198,70 @@ function PropertyDetails() {
           <>
             <section className="property-detail-layout" aria-labelledby="property-title">
               <div className="property-detail-main">
-                <div className="property-detail-image">
-                  {property.images?.[0] ? (
-                    <img src={property.images[0]} alt={`${property.title} accommodation`} />
-                  ) : (
-                    <div className="property-image-placeholder" aria-label="No property photo available">
-                      <div className="card-building">
-                        <span className="building-roof" />
-                        <span className="building-face"><i /><i /><i /><i /></span>
+                <div className="property-detail-gallery">
+                  <div
+                    className="property-detail-image"
+                    aria-label="Property photo gallery"
+                    onKeyDown={(event) => {
+                      if (propertyImages.length < 2) return;
+                      if (event.key === 'ArrowLeft') showPreviousImage();
+                      if (event.key === 'ArrowRight') showNextImage();
+                    }}
+                    tabIndex={propertyImages.length > 1 ? 0 : undefined}
+                  >
+                    {propertyImages.length > 0 ? (
+                      <img
+                        key={propertyImages[activeImageIndex]}
+                        src={propertyImages[activeImageIndex]}
+                        alt={`${property.title}, ${activeImageIndex + 1} of ${propertyImages.length}`}
+                      />
+                    ) : (
+                      <div className="property-image-placeholder" aria-label="No property photo available">
+                        <div className="card-building">
+                          <span className="building-roof" />
+                          <span className="building-face"><i /><i /><i /><i /></span>
+                        </div>
+                        <span className="card-plant" />
                       </div>
-                      <span className="card-plant" />
+                    )}
+                    {propertyImages.length > 1 && (
+                      <>
+                        <button
+                          className="property-gallery-arrow property-gallery-previous"
+                          type="button"
+                          aria-label="Previous property photo"
+                          onClick={showPreviousImage}
+                        >
+                          <span aria-hidden="true">‹</span>
+                        </button>
+                        <button
+                          className="property-gallery-arrow property-gallery-next"
+                          type="button"
+                          aria-label="Next property photo"
+                          onClick={showNextImage}
+                        >
+                          <span aria-hidden="true">›</span>
+                        </button>
+                        <span className="property-gallery-count" aria-live="polite">
+                          {activeImageIndex + 1} / {propertyImages.length}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  {propertyImages.length > 1 && (
+                    <div className="property-gallery-thumbnails" aria-label="Choose a property photo">
+                      {propertyImages.map((image, index) => (
+                        <button
+                          className={`property-gallery-thumbnail${index === activeImageIndex ? ' is-active' : ''}`}
+                          type="button"
+                          key={`${image}-${index}`}
+                          aria-label={`Show property photo ${index + 1}`}
+                          aria-pressed={index === activeImageIndex}
+                          onClick={() => setActiveImageIndex(index)}
+                        >
+                          <img src={image} alt="" />
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>

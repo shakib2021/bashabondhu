@@ -48,9 +48,10 @@ function Navbar() {
   const userName = user?.name
     || user?.email
     || 'Your account';
-  const dashboardPath = user && (user.role || user.accountType) === 'owner'
-    ? '/owner'
-    : '/tenant/dashboard';
+  const accountRole = user?.role || user?.accountType;
+  const dashboardPath = accountRole === 'admin'
+    ? '/admin'
+    : accountRole === 'owner' ? '/owner' : '/tenant/dashboard';
   const initials = userName.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
 
   return (
