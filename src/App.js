@@ -41,6 +41,7 @@ function App() {
             <Route path="contact-requests" element={<ContactRequests />} />
             <Route path="properties" element={<MyProperties />} />
             <Route path="properties/new" element={<AddProperty />} />
+            <Route path="properties/:propertyId/edit" element={<AddProperty />} />
           </Route>
           <Route path="*" element={<Home />} />
         </Routes>

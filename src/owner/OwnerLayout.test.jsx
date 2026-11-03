@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { getStoredUser } from '../utils/authStorage';
-import { createProperty, getMyProperties } from '../utils/propertyApi';
+import { createProperty, deleteProperty, getMyProperties, updateProperty } from '../utils/propertyApi';
 import { getNotifications, markNotificationRead } from '../utils/notificationApi';
 import { getOwnerContactRequests, updateContactRequest } from '../utils/contactRequestApi';
 import AddProperty from './AddProperty';
@@ -9,6 +9,7 @@ import ContactRequests from './ContactRequests';
 import OwnerDashboard from './OwnerDashboard';
 import OwnerLayout from './OwnerLayout';
 import OwnerProfile from './OwnerProfile';
+import MyProperties from './MyProperties';
 
 const mockMaybeSingle = jest.fn();
 const originalFetch = global.fetch;
@@ -19,7 +20,9 @@ jest.mock('../utils/authStorage', () => ({
 
 jest.mock('../utils/propertyApi', () => ({
   createProperty: jest.fn(),
+  deleteProperty: jest.fn(),
   getMyProperties: jest.fn(),
+  updateProperty: jest.fn(),
 }));
 
 jest.mock('../utils/notificationApi', () => ({
@@ -40,7 +43,9 @@ function renderOwnerRoutes() {
           <Route index element={<OwnerDashboard />} />
           <Route path="profile" element={<OwnerProfile />} />
           <Route path="contact-requests" element={<ContactRequests />} />
+          <Route path="properties" element={<MyProperties />} />
           <Route path="properties/new" element={<AddProperty />} />
+          <Route path="properties/:propertyId/edit" element={<AddProperty />} />
         </Route>
         <Route path="/properties/:propertyId" element={<p>Property detail</p>} />
         <Route path="/tenant/dashboard" element={<p>Tenant dashboard</p>} />
@@ -70,6 +75,8 @@ beforeEach(() => {
     rating: 0,
   });
   getMyProperties.mockResolvedValue([]);
+  deleteProperty.mockResolvedValue(undefined);
+  updateProperty.mockResolvedValue({ _id: 'property-id', title: 'Updated rental room' });
   mockMaybeSingle.mockResolvedValue({
     ok: true,
     json: async () => ({
@@ -262,4 +269,67 @@ test('posts a property and shows its saved listing details', async () => {
     title: 'Sunny rental room',
     email: 'owner@example.com',
   }), [photo, secondPhoto]);
+});
+
+test('edits an owner listing and can remove an existing photo', async () => {
+  getStoredUser.mockReturnValue({ id: 'mongo-owner', email: 'owner@example.com', role: 'owner', token: 'signed-token' });
+  getMyProperties.mockResolvedValue([{
+    _id: 'property-id',
+    title: 'Sunny rental room',
+    description: 'A bright room',
+    accommodation_type: 'Rental room',
+    city: 'Dhaka',
+    location: 'Dhanmondi',
+    address: '12 Lake Road',
+    monthly_rent: 25000,
+    number_of_rooms: 2,
+    bedrooms: 1,
+    bathrooms: 1,
+    facilities: ['Wi-Fi'],
+    images: ['http://localhost:5000/api/property-images/property-id/photo-one'],
+    status: 'Available',
+    gender: 'any',
+  }]);
+
+  renderOwnerRoutes();
+  await screen.findByRole('heading', { name: /welcome home, mina/i });
+  fireEvent.click(within(screen.getByRole('navigation', { name: /owner navigation/i }))
+    .getByRole('link', { name: /my properties/i }));
+  fireEvent.click(await screen.findByRole('link', { name: 'Edit' }));
+
+  expect(await screen.findByDisplayValue('Sunny rental room')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Remove current photo 1' }));
+  fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+
+  expect(updateProperty).toHaveBeenCalledWith(
+    'property-id',
+    expect.objectContaining({ title: 'Sunny rental room', images: [] }),
+    [],
+  );
+  expect(await screen.findByRole('heading', { name: 'My properties' })).toBeInTheDocument();
+});
+
+test('confirms owner listing deletion before removing it from the list', async () => {
+  getStoredUser.mockReturnValue({ id: 'mongo-owner', email: 'owner@example.com', role: 'owner', token: 'signed-token' });
+  getMyProperties.mockResolvedValue([{
+    _id: 'property-id',
+    title: 'Sunny rental room',
+    accommodation_type: 'Rental room',
+    city: 'Dhaka',
+    location: 'Dhanmondi',
+    monthly_rent: 25000,
+    status: 'Available',
+  }]);
+  const confirm = jest.spyOn(window, 'confirm').mockReturnValue(true);
+
+  renderOwnerRoutes();
+  await screen.findByRole('heading', { name: /welcome home, mina/i });
+  fireEvent.click(within(screen.getByRole('navigation', { name: /owner navigation/i }))
+    .getByRole('link', { name: /my properties/i }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
+
+  expect(confirm).toHaveBeenCalledWith('Delete "Sunny rental room"? This cannot be undone.');
+  expect(deleteProperty).toHaveBeenCalledWith('property-id');
+  expect(await screen.findByRole('heading', { name: 'No properties yet' })).toBeInTheDocument();
+  confirm.mockRestore();
 });

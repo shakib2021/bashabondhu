@@ -38,6 +38,7 @@ The backend uses the Factory pattern in `src/middleware/imageUpload.js` to build
 - `GET /api/admin/posts` and `DELETE /api/admin/posts/:postId` — admins can list and permanently remove property posts.
 - `PATCH /api/admin/reports/:reportId` — admins mark a pending report `reviewed` or `dismissed`.
 - `POST /api/properties` — owners can create listings using JSON or multipart form data. Multipart requests send a `property` JSON field and up to 6 `images` files (JPEG, PNG, or WebP; up to 5 MB each and 12 MB combined).
+- `PUT /api/properties/:propertyId` and `DELETE /api/properties/:propertyId` — owners can update or delete their own listings. Updates retain only the existing image URLs included in the `images` list and can add new multipart `images` files.
 - `GET /api/property-images/:propertyId/:photoId` — serves a listing image stored in the `images` array as its original image type.
 - `GET /api/property-images/:imageId` — serves legacy photos stored in the separate property-image collection.
 - `GET /api/users/me/watchlist` — returns the signed-in user's saved available listings.

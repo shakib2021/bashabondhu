@@ -1,8 +1,8 @@
-import { Link, useOutletContext } from 'react-router-dom';
-import { useState } from 'react';
+import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { createProperty } from '../utils/propertyApi';
+import { createProperty, getMyProperties, updateProperty } from '../utils/propertyApi';
 
 const accommodationTypes = [
   'Mess',
@@ -24,10 +24,44 @@ const rentalGenders = [
 
 function AddProperty() {
   const { profile } = useOutletContext();
+  const { propertyId } = useParams();
+  const navigate = useNavigate();
+  const isEditing = Boolean(propertyId);
+  const [property, setProperty] = useState(null);
+  const [isLoading, setIsLoading] = useState(isEditing);
   const [preview, setPreview] = useState(null);
+  const [keptPhotos, setKeptPhotos] = useState([]);
   const [selectedPhotos, setSelectedPhotos] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+    if (!isEditing) return undefined;
+    let isMounted = true;
+
+    getMyProperties()
+      .then((properties) => {
+        const ownedProperty = properties.find((item) => String(item._id || item.id) === propertyId);
+        if (!ownedProperty) {
+          throw new Error('Property not found in your listings.');
+        }
+        if (isMounted) {
+          setProperty(ownedProperty);
+          setKeptPhotos(ownedProperty.images || []);
+          setIsLoading(false);
+        }
+      })
+      .catch((error) => {
+        if (isMounted) {
+          setErrorMessage(error.message || 'Could not load this property.');
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isEditing, propertyId]);
 
   const handlePreview = async (event) => {
     event.preventDefault();
@@ -46,7 +80,7 @@ function AddProperty() {
       bedrooms: Number(values.get('bedrooms')),
       bathrooms: Number(values.get('bathrooms')),
       facilities: splitLines(values.get('facilities')),
-      images: [],
+      images: keptPhotos,
       status: values.get('status'),
       gender: values.get('gender'),
       email: profile.email,
@@ -55,24 +89,44 @@ function AddProperty() {
     setIsSaving(true);
     setErrorMessage('');
     try {
-      const savedListing = await createProperty(listing, selectedPhotos);
-      setPreview(savedListing);
-      toast.success('Your listing has been saved.');
+      const savedListing = isEditing
+        ? await updateProperty(propertyId, listing, selectedPhotos)
+        : await createProperty(listing, selectedPhotos);
+      if (isEditing) {
+        toast.success('Your listing has been updated.');
+        navigate('/owner/properties');
+      } else {
+        setPreview(savedListing);
+        toast.success('Your listing has been saved.');
+      }
     } catch (error) {
-      setErrorMessage(error.message || 'Could not save this listing. Please try again.');
+      setErrorMessage(error.message || `Could not ${isEditing ? 'update' : 'save'} this listing. Please try again.`);
     } finally {
       setIsSaving(false);
     }
   };
+
+  if (isLoading) {
+    return <p className="owner-dashboard-state" role="status">Loading property details…</p>;
+  }
+
+  if (isEditing && !property) {
+    return (
+      <section className="owner-panel owner-dashboard-state" role="alert">
+        <p>{errorMessage || 'Could not load this property.'}</p>
+        <Link className="owner-button owner-button-outline" to="/owner/properties">Back to properties</Link>
+      </section>
+    );
+  }
 
   return (
     <>
       <ToastContainer position="top-right" autoClose={4000} />
       <section className="owner-page-heading">
         <div>
-          <span className="owner-eyebrow">GROW YOUR PORTFOLIO</span>
-          <h1>Add a property</h1>
-          <p>Share the essentials to start putting your home on renters’ radar.</p>
+          <span className="owner-eyebrow">{isEditing ? 'UPDATE YOUR PORTFOLIO' : 'GROW YOUR PORTFOLIO'}</span>
+          <h1>{isEditing ? 'Edit property' : 'Add a property'}</h1>
+          <p>{isEditing ? 'Update your listing details and photos.' : 'Share the essentials to start putting your home on renters’ radar.'}</p>
         </div>
         <Link className="owner-back-link" to="/owner/properties"><span aria-hidden="true">←</span> Back to properties</Link>
       </section>
@@ -82,7 +136,7 @@ function AddProperty() {
           <div className="owner-panel-heading">
             <div>
               <span className="owner-eyebrow">PROPERTY DETAILS</span>
-              <h2>Tell us about your place</h2>
+              <h2>{isEditing ? 'Update your place' : 'Tell us about your place'}</h2>
             </div>
             <span className="owner-required-note"><span aria-hidden="true">*</span> Required</span>
           </div>
@@ -92,7 +146,7 @@ function AddProperty() {
             <div className="owner-form-grid">
               <label className="owner-field owner-field-wide">
                 <span>Title <i>*</i></span>
-                <input type="text" name="title" placeholder="e.g. Sunny rental room in Dhanmondi" required />
+                <input type="text" name="title" defaultValue={property?.title || ''} placeholder="e.g. Sunny rental room in Dhanmondi" required />
               </label>
               <label className="owner-field owner-field-wide">
                 <span>Owner email</span>
@@ -100,24 +154,24 @@ function AddProperty() {
               </label>
               <label className="owner-field">
                 <span>Accommodation type <i>*</i></span>
-                <select name="accommodation_type" defaultValue="" required>
+                <select name="accommodation_type" defaultValue={property?.accommodation_type || ''} required>
                   <option value="" disabled>Select a type</option>
                   {accommodationTypes.map((type) => <option key={type} value={type}>{type}</option>)}
                 </select>
               </label>
               <label className="owner-field">
                 <span>Monthly rent (৳) <i>*</i></span>
-                <input type="number" name="monthly_rent" min="0" step="0.01" placeholder="e.g. 25000" required />
+                <input type="number" name="monthly_rent" min="0" step="0.01" defaultValue={property?.monthly_rent ?? ''} placeholder="e.g. 25000" required />
               </label>
               <label className="owner-field">
                 <span>Listing status</span>
-                <select name="status" defaultValue="Available">
+                <select name="status" defaultValue={property?.status || 'Available'}>
                   {listingStatuses.map((status) => <option key={status} value={status}>{status}</option>)}
                 </select>
               </label>
               <label className="owner-field">
                 <span>Rent is for <i>*</i></span>
-                <select name="gender" defaultValue="any" required>
+                <select name="gender" defaultValue={property?.gender || 'any'} required>
                   {rentalGenders.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
                 </select>
               </label>
@@ -129,15 +183,15 @@ function AddProperty() {
             <div className="owner-form-grid">
               <label className="owner-field">
                 <span>City <i>*</i></span>
-                <input type="text" name="city" placeholder="e.g. Dhaka" required />
+                <input type="text" name="city" defaultValue={property?.city || ''} placeholder="e.g. Dhaka" required />
               </label>
               <label className="owner-field">
                 <span>Area / neighborhood <i>*</i></span>
-                <input type="text" name="location" placeholder="e.g. Dhanmondi" required />
+                <input type="text" name="location" defaultValue={property?.location || ''} placeholder="e.g. Dhanmondi" required />
               </label>
               <label className="owner-field owner-field-wide">
                 <span>Street address</span>
-                <input type="text" name="address" placeholder="House and road (optional)" />
+                <input type="text" name="address" defaultValue={property?.address || ''} placeholder="House and road (optional)" />
               </label>
             </div>
           </div>
@@ -147,23 +201,23 @@ function AddProperty() {
             <div className="owner-form-grid owner-form-grid-three">
               <label className="owner-field">
                 <span>Number of rooms <i>*</i></span>
-                <input type="number" name="number_of_rooms" min="1" step="1" defaultValue="1" required />
+                <input type="number" name="number_of_rooms" min="1" step="1" defaultValue={property?.number_of_rooms || 1} required />
               </label>
               <label className="owner-field">
                 <span>Bedrooms <i>*</i></span>
-                <input type="number" name="bedrooms" min="1" step="1" defaultValue="1" required />
+                <input type="number" name="bedrooms" min="1" step="1" defaultValue={property?.bedrooms || 1} required />
               </label>
               <label className="owner-field">
                 <span>Bathrooms <i>*</i></span>
-                <input type="number" name="bathrooms" min="1" step="1" defaultValue="1" required />
+                <input type="number" name="bathrooms" min="1" step="1" defaultValue={property?.bathrooms || 1} required />
               </label>
               <label className="owner-field owner-field-wide">
                 <span>Description</span>
-                <textarea name="description" rows="4" placeholder="What makes this home special? Include anything renters should know." />
+                <textarea name="description" rows="4" defaultValue={property?.description || ''} placeholder="What makes this home special? Include anything renters should know." />
               </label>
               <label className="owner-field owner-field-wide">
                 <span>Facilities</span>
-                <textarea name="facilities" rows="3" placeholder={'One facility per line, e.g.\nWi-Fi\nParking'} />
+                <textarea name="facilities" rows="3" defaultValue={(property?.facilities || []).join('\n')} placeholder={'One facility per line, e.g.\nWi-Fi\nParking'} />
               </label>
               <label className="owner-field owner-field-wide">
                 <span>Property photos</span>
@@ -178,7 +232,7 @@ function AddProperty() {
                     const combined = [...selectedPhotos, ...selected];
                     const totalSize = combined.reduce((total, file) => total + file.size, 0);
                     event.target.value = '';
-                    if (combined.length > MAX_PROPERTY_PHOTOS) {
+                    if (keptPhotos.length + combined.length > MAX_PROPERTY_PHOTOS) {
                       setErrorMessage('Choose up to 6 property photos.');
                     } else if (oversizedFile) {
                       setErrorMessage(`${oversizedFile.name} is larger than 5 MB.`);
@@ -190,8 +244,27 @@ function AddProperty() {
                     }
                   }}
                 />
-                <small>Choose up to 6 JPEG, PNG, or WebP photos (5 MB each, 12 MB total).</small>
+                <small>Keep or choose up to 6 JPEG, PNG, or WebP photos (5 MB each, 12 MB total).</small>
               </label>
+              {keptPhotos.length > 0 && (
+                <div className="owner-selected-photos owner-field-wide">
+                  <span>Current photos</span>
+                  <ul className="owner-photo-preview-list">
+                    {keptPhotos.map((photo, index) => (
+                      <li key={`${photo}-${index}`}>
+                        <img src={photo} alt={`Current property ${index + 1}`} />
+                        <button
+                          type="button"
+                          aria-label={`Remove current photo ${index + 1}`}
+                          onClick={() => setKeptPhotos((current) => current.filter((_, photoIndex) => photoIndex !== index))}
+                        >
+                          Remove
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {selectedPhotos.length > 0 && (
                 <div className="owner-selected-photos owner-field-wide" role="status">
                   <span>{selectedPhotos.length} photo{selectedPhotos.length === 1 ? '' : 's'} selected</span>
@@ -217,7 +290,7 @@ function AddProperty() {
           <div className="owner-form-actions">
             <Link className="owner-button owner-button-outline" to="/owner/properties">Cancel</Link>
             <button className="owner-button owner-button-primary" type="submit" disabled={isSaving}>
-              {isSaving ? 'Posting…' : 'Post listing'} <span aria-hidden="true">→</span>
+              {isSaving ? (isEditing ? 'Saving…' : 'Posting…') : (isEditing ? 'Save changes' : 'Post listing')} <span aria-hidden="true">→</span>
             </button>
           </div>
           {errorMessage && <p className="owner-form-message" role="alert">{errorMessage}</p>}

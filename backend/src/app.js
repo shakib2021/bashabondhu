@@ -1181,6 +1181,152 @@ function createApp({
     }
   });
 
+  app.put('/api/properties/:propertyId', authenticate, parsePropertyImageUpload, async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.propertyId)) {
+        return res.status(404).json({ success: false, message: 'Property not found.' });
+      }
+
+      const user = await UserModel.findById(req.userId);
+      if (!user || user.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      if (user.role !== 'owner') {
+        return res.status(403).json({ success: false, message: 'Only property owners can update listings.' });
+      }
+
+      let propertyData = req.body;
+      if (req.is('multipart/form-data')) {
+        try {
+          propertyData = JSON.parse(req.body.property || '{}');
+        } catch {
+          return res.status(400).json({ success: false, message: 'Property details must contain valid JSON.' });
+        }
+      }
+      if (!propertyData || typeof propertyData !== 'object' || Array.isArray(propertyData)) {
+        return res.status(400).json({ success: false, message: 'Property details must be an object.' });
+      }
+      if (!Array.isArray(propertyData.images) || propertyData.images.some((image) => typeof image !== 'string')) {
+        return res.status(400).json({ success: false, message: 'Property images must be a list of existing image URLs.' });
+      }
+      if (propertyData.facilities !== undefined && !Array.isArray(propertyData.facilities)) {
+        return res.status(400).json({ success: false, message: 'Property facilities must be a list.' });
+      }
+
+      const existingProperty = await AccommodationModel.findById(req.params.propertyId);
+      if (!existingProperty || String(existingProperty.ownerId) !== String(user._id)) {
+        return res.status(404).json({ success: false, message: 'Property not found.' });
+      }
+
+      const existingImages = existingProperty.images || [];
+      const retainedImages = [];
+      for (const requestedImage of propertyData.images) {
+        let requestedPath;
+        try {
+          requestedPath = new URL(requestedImage, 'http://localhost').pathname;
+        } catch {
+          return res.status(400).json({ success: false, message: 'Choose only existing photos from this property.' });
+        }
+        const retainedImage = existingImages.find((image) => {
+          if (typeof image === 'string') return image === requestedImage;
+          if (!image?._id) return false;
+          return requestedPath === `/api/property-images/${existingProperty._id}/${image._id}`;
+        });
+        if (!retainedImage || retainedImages.includes(retainedImage)) {
+          return res.status(400).json({ success: false, message: 'Choose only existing photos from this property.' });
+        }
+        retainedImages.push(retainedImage);
+      }
+
+      const uploadedImages = req.files || [];
+      if (uploadedImages.some((file) => !isValidPropertyImage(file))) {
+        return res.status(400).json({ success: false, message: 'The uploaded files must be valid JPEG, PNG, or WebP images.' });
+      }
+      if (retainedImages.length + uploadedImages.length > 6) {
+        return res.status(400).json({ success: false, message: 'Upload up to 6 property photos.' });
+      }
+      const retainedImageSizes = retainedImages.flatMap((image) => {
+        const buffer = typeof image === 'object' ? getImageBuffer(image.data) : null;
+        return buffer ? [{ size: buffer.length }] : [];
+      });
+      if (!isPropertyPhotoUploadWithinLimit([...retainedImageSizes, ...uploadedImages])) {
+        return res.status(413).json({
+          success: false,
+          message: 'Property photos must total 12 MB or less per listing.',
+        });
+      }
+
+      const property = await AccommodationModel.findOneAndUpdate(
+        { _id: req.params.propertyId, ownerId: user._id },
+        {
+          $set: {
+            title: propertyData.title,
+            description: propertyData.description || '',
+            accommodation_type: propertyData.accommodation_type,
+            city: propertyData.city,
+            location: propertyData.location,
+            address: propertyData.address || '',
+            monthly_rent: propertyData.monthly_rent,
+            number_of_rooms: propertyData.number_of_rooms,
+            bedrooms: propertyData.bedrooms,
+            bathrooms: propertyData.bathrooms,
+            facilities: propertyData.facilities || [],
+            images: [
+              ...retainedImages,
+              ...uploadedImages.map((file) => ({
+                _id: new mongoose.Types.ObjectId(),
+                data: mongoose.mongo.BSON.Binary.createFromBase64(file.buffer.toString('base64')),
+                mimeType: file.mimetype,
+              })),
+            ],
+            status: propertyData.status,
+            gender: propertyData.gender,
+          },
+        },
+        { new: true, runValidators: true },
+      );
+      if (!property) {
+        return res.status(404).json({ success: false, message: 'Property not found.' });
+      }
+
+      const propertyObject = typeof property.toObject === 'function' ? property.toObject() : property;
+      return res.json({
+        success: true,
+        property: { ...propertyObject, images: getPropertyImageUrls(property) },
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.delete('/api/properties/:propertyId', authenticate, async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.propertyId)) {
+        return res.status(404).json({ success: false, message: 'Property not found.' });
+      }
+
+      const user = await UserModel.findById(req.userId);
+      if (!user || user.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      if (user.role !== 'owner') {
+        return res.status(403).json({ success: false, message: 'Only property owners can delete listings.' });
+      }
+
+      const property = await AccommodationModel.findOneAndDelete({
+        _id: req.params.propertyId,
+        ownerId: user._id,
+      });
+      if (!property) {
+        return res.status(404).json({ success: false, message: 'Property not found.' });
+      }
+      await PropertyImageModel.deleteMany({ propertyId: property._id });
+      return res.json({ success: true, message: 'Property deleted.' });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
   app.get('/api/property-images/:propertyId/:photoId', async (req, res, next) => {
     try {
       if (

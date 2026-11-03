@@ -41,6 +41,36 @@ export async function createProperty(property, imageFiles = []) {
   return normalizePropertyImages(result.property);
 }
 
+export async function updateProperty(propertyId, property, imageFiles = []) {
+  const session = getStoredUser();
+  if (!session?.token) {
+    throw new Error('Your session has expired. Please sign in again.');
+  }
+
+  const formData = new FormData();
+  formData.append('property', JSON.stringify(property));
+  imageFiles.forEach((file) => formData.append('images', file));
+
+  const result = await requestApi(`/properties/${encodeURIComponent(propertyId)}`, {
+    method: 'PUT',
+    token: session.token,
+    body: formData,
+  });
+  return normalizePropertyImages(result.property);
+}
+
+export async function deleteProperty(propertyId) {
+  const session = getStoredUser();
+  if (!session?.token) {
+    throw new Error('Your session has expired. Please sign in again.');
+  }
+
+  await requestApi(`/properties/${encodeURIComponent(propertyId)}`, {
+    method: 'DELETE',
+    token: session.token,
+  });
+}
+
 export async function getMyProperties() {
   const session = getStoredUser();
   if (!session?.token) {

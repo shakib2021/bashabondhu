@@ -314,6 +314,13 @@ function createTestApp() {
         if (index < 0) return null;
         return properties.splice(index, 1)[0];
       },
+      async findOneAndDelete(query) {
+        const index = properties.findIndex((item) => (
+          String(item._id) === String(query._id) && String(item.ownerId) === String(query.ownerId)
+        ));
+        if (index < 0) return null;
+        return properties.splice(index, 1)[0];
+      },
       async findOneAndUpdate(query, update) {
         const property = properties.find((item) => Object.entries(query).every(([field, value]) => {
           if (field === '_id') return String(item._id) === String(value);
@@ -345,6 +352,10 @@ function createTestApp() {
           return item[field] === value;
         }));
         if (!property) return null;
+        if (update.$set && !Object.keys(update.$set).some((field) => field.startsWith('contactRequests.$.'))) {
+          Object.assign(property, update.$set);
+          return property;
+        }
         if (update.$set?.images) {
           property.images = update.$set.images;
           const responseProperty = { ...property };
@@ -866,6 +877,92 @@ test('creates an owner listing with verified email and an unrated default', asyn
   assert.equal(response.body.property.gender, 'any');
   assert.equal(response.body.property.rating, 0);
   assert.equal(properties.length, 1);
+});
+
+test('lets an owner update their listing while retaining selected photos', async () => {
+  const propertyId = '650000000000000000000078';
+  const photoId = '650000000000000000000079';
+  const photoBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  properties.push({
+    _id: propertyId,
+    ownerId: 'owner-user',
+    title: 'Old listing title',
+    images: [{
+      _id: photoId,
+      data: new mongoose.mongo.BSON.Binary(photoBytes),
+      mimeType: 'image/png',
+    }],
+  });
+  const payload = {
+    title: 'Updated listing title',
+    description: 'Updated details',
+    accommodation_type: 'Rental room',
+    city: 'Dhaka',
+    location: 'Dhanmondi',
+    address: '12 Lake Road',
+    monthly_rent: 30000,
+    number_of_rooms: 2,
+    bedrooms: 1,
+    bathrooms: 1,
+    facilities: ['Wi-Fi'],
+    images: [`/api/property-images/${propertyId}/${photoId}`],
+    status: 'Available',
+    gender: 'any',
+  };
+  const newPhoto = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x01]);
+  const response = await request(testApp)
+    .put(`/api/properties/${propertyId}`)
+    .set('Authorization', 'Bearer owner-test-token')
+    .field('property', JSON.stringify(payload))
+    .attach('images', newPhoto, { filename: 'new-room.png', contentType: 'image/png' });
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.property.title, 'Updated listing title');
+  assert.equal(response.body.property.monthly_rent, 30000);
+  assert.equal(properties[0].images.length, 2);
+  assert.deepEqual(properties[0].images[0].data.value(true), photoBytes);
+  assert.deepEqual(properties[0].images[1].data.value(true), newPhoto);
+});
+
+test('restricts owner listing edits and deletes to the listing owner', async () => {
+  const propertyId = '650000000000000000000078';
+  properties.push({
+    _id: propertyId,
+    ownerId: 'tenant-user',
+    title: 'Another user listing',
+    images: [],
+  });
+
+  const update = await request(testApp)
+    .put(`/api/properties/${propertyId}`)
+    .set('Authorization', 'Bearer owner-test-token')
+    .send({ images: [] });
+  assert.equal(update.status, 404);
+
+  const deletion = await request(testApp)
+    .delete(`/api/properties/${propertyId}`)
+    .set('Authorization', 'Bearer owner-test-token');
+  assert.equal(deletion.status, 404);
+  assert.equal(properties.length, 1);
+});
+
+test('lets an owner delete their listing and its legacy photos', async () => {
+  const propertyId = '650000000000000000000078';
+  properties.push({ _id: propertyId, ownerId: 'owner-user', title: 'Listing to remove', images: [] });
+  propertyImages.push({
+    _id: '650000000000000000000079',
+    propertyId,
+    data: Buffer.from('legacy image'),
+    mimeType: 'image/png',
+  });
+
+  const response = await request(testApp)
+    .delete(`/api/properties/${propertyId}`)
+    .set('Authorization', 'Bearer owner-test-token');
+
+  assert.equal(response.status, 200);
+  assert.equal(properties.length, 0);
+  assert.equal(propertyImages.length, 0);
 });
 
 test('stores multiple binary images in accopost.images and serves their original bytes', async () => {
