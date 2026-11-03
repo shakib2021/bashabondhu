@@ -16,6 +16,10 @@ The API listens on port 5000 by default. Set the frontend's `REACT_APP_API_URL` 
 
 If Node.js reports `querySrv ECONNREFUSED`, set optional `MONGODB_DNS_SERVERS` to a DNS resolver reachable from the machine running the backend (comma-separated for multiple resolvers). If DNS then resolves but MongoDB reports a server-selection timeout, add the backend machine's public IP under Atlas **Network Access** and confirm outbound access to MongoDB on port 27017.
 
+## Design patterns
+
+The backend uses the Factory pattern in `src/middleware/imageUpload.js` to build Multer middleware for different image-upload routes. NID verification and property photos share the same image-type validation and upload-error handling while retaining their route-specific file limits and response messages. The app also exposes `createApp` as a factory so tests can inject model and authentication dependencies.
+
 ## Routes
 
 - `POST /api/auth/google/register` — body: `{ "accessToken": "...", "role": "tenant" | "owner" }`. The server verifies the token with Google; public registration cannot create admins.

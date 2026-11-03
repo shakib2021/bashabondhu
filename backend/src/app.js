@@ -3,13 +3,13 @@ const express = require('express');
 const mongoose = require('mongoose');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
-const multer = require('multer');
 const Accommodation = require('./models/Accommodation');
 const OwnerVerification = require('./models/OwnerVerification');
 const PropertyImage = require('./models/PropertyImage');
 const PropertyReport = require('./models/PropertyReport');
 const User = require('./models/User');
 const { createAuthenticate } = require('./middleware/authenticate');
+const { createImageUploadMiddleware } = require('./middleware/imageUpload');
 const { getVerifiedFirebaseUser } = require('./utils/firebaseAuth');
 const { getVerifiedGoogleUser } = require('./utils/googleAuth');
 const { signAuthToken, verifyAuthToken } = require('./utils/authToken');
@@ -53,35 +53,16 @@ function createApp({
   const app = express();
   const allowedOrigins = new Set(clientOrigins.split(',').map((origin) => origin.trim()).filter(Boolean));
   const authenticate = createAuthenticate(tokenVerifier, jwtSecret);
-  const verificationUpload = multer({
-    storage: multer.memoryStorage(),
-    limits: { fileSize: 4 * 1024 * 1024, files: 2, fields: 2, fieldSize: 1024 },
-    fileFilter(req, file, callback) {
-      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
-        callback(new Error('Upload the NID images as JPEG, PNG, or WebP files.'));
-        return;
-      }
-      callback(null, true);
-    },
-  }).fields([{ name: 'frontImage', maxCount: 1 }, { name: 'backImage', maxCount: 1 }]);
-  const parseVerificationUpload = (req, res, next) => {
-    verificationUpload(req, res, (error) => {
-      if (!error) return next();
-      if (error instanceof multer.MulterError) {
-        const status = error.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
-        return res.status(status).json({
-          success: false,
-          message: error.code === 'LIMIT_FILE_SIZE'
-            ? 'Each NID image must be 4 MB or smaller.'
-            : 'Upload one front image and one back image.',
-        });
-      }
-      if (error.message === 'Upload the NID images as JPEG, PNG, or WebP files.') {
-        return res.status(400).json({ success: false, message: error.message });
-      }
-      return next(error);
-    });
-  };
+  const parseVerificationUpload = createImageUploadMiddleware({
+    maxFileSize: 4 * 1024 * 1024,
+    maxFiles: 2,
+    maxFields: 2,
+    maxFieldSize: 1024,
+    fileFields: [{ name: 'frontImage', maxCount: 1 }, { name: 'backImage', maxCount: 1 }],
+    fileSizeErrorMessage: 'Each NID image must be 4 MB or smaller.',
+    uploadErrorMessage: 'Upload one front image and one back image.',
+    invalidTypeMessage: 'Upload the NID images as JPEG, PNG, or WebP files.',
+  });
   const verificationUploadLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 5,
@@ -94,35 +75,16 @@ function createApp({
       });
     },
   });
-  const propertyImageUpload = multer({
-    storage: multer.memoryStorage(),
-    limits: { fileSize: 5 * 1024 * 1024, files: 6, fields: 1, fieldSize: 20 * 1024 },
-    fileFilter(req, file, callback) {
-      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
-        callback(new Error('Upload property photos as JPEG, PNG, or WebP files.'));
-        return;
-      }
-      callback(null, true);
-    },
-  }).array('images', 6);
-  const parsePropertyImageUpload = (req, res, next) => {
-    propertyImageUpload(req, res, (error) => {
-      if (!error) return next();
-      if (error instanceof multer.MulterError) {
-        const status = error.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
-        return res.status(status).json({
-          success: false,
-          message: error.code === 'LIMIT_FILE_SIZE'
-            ? 'Each property photo must be 5 MB or smaller, with up to 6 photos.'
-            : 'Upload up to 6 property photos.',
-        });
-      }
-      if (error.message === 'Upload property photos as JPEG, PNG, or WebP files.') {
-        return res.status(400).json({ success: false, message: error.message });
-      }
-      return next(error);
-    });
-  };
+  const parsePropertyImageUpload = createImageUploadMiddleware({
+    maxFileSize: 5 * 1024 * 1024,
+    maxFiles: 6,
+    maxFields: 1,
+    maxFieldSize: 20 * 1024,
+    fieldName: 'images',
+    fileSizeErrorMessage: 'Each property photo must be 5 MB or smaller, with up to 6 photos.',
+    uploadErrorMessage: 'Upload up to 6 property photos.',
+    invalidTypeMessage: 'Upload property photos as JPEG, PNG, or WebP files.',
+  });
   const isValidNidImage = (file) => {
     const bytes = file.buffer;
     if (file.mimetype === 'image/jpeg') {

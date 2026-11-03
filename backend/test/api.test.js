@@ -554,6 +554,26 @@ test('serves profile information only to the authenticated user', async () => {
   assert.equal(authorized.body.user.role, 'admin');
 });
 
+test('rejects unsupported image types for both upload endpoints', async () => {
+  const invalidImage = Buffer.from('not an image');
+  const verificationResponse = await request(testApp)
+    .post('/api/owner/verification')
+    .set('Authorization', 'Bearer owner-test-token')
+    .attach('frontImage', invalidImage, { filename: 'document.pdf', contentType: 'application/pdf' });
+
+  assert.equal(verificationResponse.status, 400);
+  assert.equal(verificationResponse.body.message, 'Upload the NID images as JPEG, PNG, or WebP files.');
+
+  const propertyResponse = await request(testApp)
+    .post('/api/properties')
+    .set('Authorization', 'Bearer owner-test-token')
+    .field('property', '{}')
+    .attach('images', invalidImage, { filename: 'document.pdf', contentType: 'application/pdf' });
+
+  assert.equal(propertyResponse.status, 400);
+  assert.equal(propertyResponse.body.message, 'Upload property photos as JPEG, PNG, or WebP files.');
+});
+
 test('collects owner NID submissions and exposes the verified badge only after admin approval', async () => {
   const owner = users.get('owner-user');
   owner.isVerified = false;
