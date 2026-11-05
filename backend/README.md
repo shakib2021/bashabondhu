@@ -20,6 +20,8 @@ If Node.js reports `querySrv ECONNREFUSED`, set optional `MONGODB_DNS_SERVERS` t
 
 The backend uses the Factory pattern in `src/middleware/imageUpload.js` to build Multer middleware for different image-upload routes. NID verification and property photos share the same image-type validation and upload-error handling while retaining their route-specific file limits and response messages. The app also exposes `createApp` as a factory so tests can inject model and authentication dependencies.
 
+The backend also uses the Strategy pattern in `src/utils/imageValidation.js`: it selects the signature validator for JPEG, PNG, or WebP from the uploaded file's MIME type. NID and property-photo uploads share those strategies, so both routes verify file contents rather than trusting MIME metadata alone.
+
 ## Routes
 
 - `POST /api/auth/google/register` — body: `{ "accessToken": "...", "role": "tenant" | "owner" }`. The server verifies the token with Google; public registration cannot create admins.
