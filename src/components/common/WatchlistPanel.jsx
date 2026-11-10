@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowRight, Home } from 'lucide-react';
 import WatchlistButton from './WatchlistButton';
 import { getMyWatchlist } from '../../utils/watchlistApi';
 import './WatchlistPanel.css';
@@ -47,7 +48,7 @@ function WatchlistPanel() {
           <span className="watchlist-eyebrow">YOUR SAVED HOMES</span>
           <h2 id="watchlist-title">Watchlist <span>{status === 'ready' ? properties.length : ''}</span></h2>
         </div>
-        <Link to="/#homes">Browse homes <span aria-hidden="true">→</span></Link>
+        <Link to="/#homes">Browse homes <ArrowRight aria-hidden="true" /></Link>
       </div>
 
       {status === 'loading' && <p className="watchlist-panel-state" role="status">Loading your watchlist…</p>}
@@ -70,7 +71,7 @@ function WatchlistPanel() {
                   {property.images?.[0] ? (
                     <img src={property.images[0]} alt="" loading="lazy" />
                   ) : (
-                    <span className="watchlist-card-placeholder" aria-hidden="true">⌂</span>
+                    <span className="watchlist-card-placeholder" aria-hidden="true"><Home /></span>
                   )}
                   <span className="watchlist-card-copy">
                     <strong>{property.title}</strong>

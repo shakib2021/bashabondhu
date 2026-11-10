@@ -103,7 +103,12 @@ test('shows the owner workspace to a signed-in owner', async () => {
   renderOwnerRoutes();
 
   expect(await screen.findByRole('heading', { name: /welcome home, mina/i })).toBeInTheDocument();
-  expect(screen.getByRole('navigation', { name: /owner navigation/i })).toBeInTheDocument();
+  const navigation = screen.getByRole('navigation', { name: /owner navigation/i });
+  expect(navigation).toBeInTheDocument();
+  expect(within(navigation).getByRole('link', { name: 'My marketplace' })).toHaveAttribute(
+    'href',
+    '/marketplace/my-listings',
+  );
 });
 
 test('opens notifications and the owner profile from the top bar', async () => {

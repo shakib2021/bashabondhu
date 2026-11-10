@@ -1141,7 +1141,7 @@ test('returns only the authenticated owner’s listings', async () => {
   assert.equal(response.body.properties[0].title, 'Owner room');
 });
 
-test('returns only available public listings with a safe owner verification flag', async () => {
+test('returns public listings in all statuses with a safe owner verification flag', async () => {
   properties.push(
     {
       _id: 'available-listing',
@@ -1158,12 +1158,32 @@ test('returns only available public listings with a safe owner verification flag
   const response = await request(testApp).get('/api/properties');
 
   assert.equal(response.status, 200);
-  assert.equal(response.body.properties.length, 1);
+  assert.equal(response.body.properties.length, 2);
   assert.equal(response.body.properties[0].title, 'Verified room');
   assert.equal(response.body.properties[0].address, '12 Lake Road');
+  assert.equal(response.body.properties[0].status, 'Available');
   assert.equal(response.body.properties[0].isVerified, true);
   assert.equal(Object.hasOwn(response.body.properties[0], 'ownerId'), false);
   assert.equal(Object.hasOwn(response.body.properties[0], 'email'), false);
+  assert.equal(response.body.properties[1].title, 'Rented room');
+  assert.equal(response.body.properties[1].status, 'Rented');
+});
+
+test('serves public details for rented listings', async () => {
+  const propertyId = '650000000000000000000081';
+  properties.push({
+    _id: propertyId,
+    ownerId: 'owner-user',
+    title: 'Rented room',
+    status: 'Rented',
+    comments: [],
+  });
+
+  const response = await request(testApp).get(`/api/properties/${propertyId}`);
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.property.title, 'Rented room');
+  assert.equal(response.body.property.status, 'Rented');
 });
 
 test('serves public property details and accepts authenticated comments', async () => {

@@ -1,7 +1,11 @@
 .site-header {
-  position: relative;
+  position: sticky;
+  top: 0;
   z-index: 5;
-  background: #fffefa;
+  border-bottom: 1px solid rgb(226 234 224 / 78%);
+  background: rgb(255 254 250 / 91%);
+  box-shadow: 0 5px 22px rgb(32 53 44 / 4%);
+  backdrop-filter: blur(16px);
 }
 
 .navbar {
@@ -9,23 +13,34 @@
   align-items: center;
   justify-content: space-between;
   width: min(1160px, calc(100% - 64px));
-  min-height: 88px;
+  min-height: 82px;
   margin: 0 auto;
 }
 
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  flex: 0 0 auto;
+  gap: 11px;
   color: #155b45;
   text-decoration: none;
 }
 
 .brand-mark {
   display: grid;
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
   place-items: center;
+  border: 1px solid #dcebdd;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #f3f8ef, #e5f1e5);
+  box-shadow: 0 4px 11px rgb(32 83 59 / 8%);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.brand:hover .brand-mark {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 15px rgb(32 83 59 / 13%);
 }
 
 .brand-mark svg {
@@ -35,7 +50,7 @@
 
 .brand-name {
   color: #20352c;
-  font-size: 20px;
+  font-size: 21px;
   font-weight: 750;
   letter-spacing: -1px;
 }
@@ -54,53 +69,73 @@
 .nav-content {
   flex: 1;
   justify-content: flex-end;
-  gap: 24px;
+  gap: 20px;
 }
 
 .nav-links {
-  gap: 34px;
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid #edf1e9;
+  border-radius: 12px;
+  background: #f5f7f1;
 }
 
 .nav-link {
+  padding: 9px 12px;
+  border-radius: 9px;
   color: #68736d;
   font-size: 13px;
-  font-weight: 550;
+  font-weight: 600;
   text-decoration: none;
-  transition: color 160ms ease;
+  transition: color 160ms ease, background 160ms ease, box-shadow 160ms ease;
 }
 
 .nav-login {
+  padding: 10px 12px;
+  border-radius: 8px;
   color: #34483e;
   font-size: 13px;
   font-weight: 650;
   text-decoration: none;
-  transition: color 160ms ease;
+  transition: color 160ms ease, background 160ms ease;
 }
 
 .nav-link:hover,
-.nav-link.active,
 .nav-login:hover {
+  background: #edf5ed;
+  color: #1e7658;
+}
+
+.nav-link.active {
+  background: #fffefa;
+  box-shadow: 0 2px 6px rgb(32 53 44 / 8%);
   color: #1e7658;
 }
 
 .nav-actions {
-  gap: 25px;
+  gap: 12px;
 }
 
 .nav-search-form {
   display: flex;
-  min-width: 190px;
-  flex: 0 1 240px;
+  min-width: 200px;
+  flex: 0 1 250px;
   overflow: hidden;
   border: 1px solid #dfe8df;
-  border-radius: 7px;
+  border-radius: 12px;
   background: #fff;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.nav-search-form:focus-within {
+  border-color: #83b49a;
+  box-shadow: 0 0 0 3px rgb(40 130 98 / 10%);
 }
 
 .nav-search-form input {
   width: 100%;
   min-width: 0;
-  padding: 0 10px;
+  padding: 0 13px;
   border: 0;
   outline: 0;
   color: #34483e;
@@ -113,8 +148,12 @@
 }
 
 .nav-search-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   min-height: 40px;
-  padding: 0 12px;
+  padding: 0 15px;
   border: 0;
   background: #1e7658;
   color: #fff;
@@ -122,6 +161,13 @@
   font: inherit;
   font-size: 12px;
   font-weight: 650;
+  transition: background 160ms ease;
+}
+
+.nav-search-button svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2;
 }
 
 .nav-search-button:hover {
@@ -132,14 +178,20 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  padding: 5px 11px 5px 5px;
+  border: 1px solid #e4ece3;
+  border-radius: 999px;
+  background: #fff;
   color: #34483e;
   font-size: 13px;
   font-weight: 650;
   text-decoration: none;
-  transition: color 160ms ease;
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
 }
 
 .nav-dashboard:hover {
+  border-color: #c9dfce;
+  background: #f5f8f2;
   color: #1e7658;
 }
 
@@ -186,8 +238,20 @@
 
 .button-small {
   min-height: 42px;
-  padding: 0 17px;
+  padding: 0 19px;
+  border-radius: 11px;
   font-size: 12px;
+}
+
+.brand:focus-visible,
+.nav-link:focus-visible,
+.nav-login:focus-visible,
+.nav-dashboard:focus-visible,
+.nav-search-button:focus-visible,
+.menu-toggle:focus-visible,
+.nav-actions .button:focus-visible {
+  outline: 3px solid #8ab99b;
+  outline-offset: 3px;
 }
 
 .menu-toggle {
@@ -200,16 +264,22 @@
   }
 
   .nav-content {
-    gap: 14px;
+    gap: 10px;
   }
 
   .nav-links {
-    gap: 12px;
+    gap: 0;
+    padding: 3px;
   }
 
   .nav-search-form {
-    min-width: 155px;
-    flex-basis: 180px;
+    min-width: 145px;
+    flex-basis: 175px;
+  }
+
+  .nav-link {
+    padding-right: 9px;
+    padding-left: 9px;
   }
 
   .nav-actions {
@@ -232,10 +302,17 @@
     align-items: center;
     justify-content: center;
     gap: 5px;
-    border: 1px solid #e6ebe4;
-    border-radius: 7px;
+    border: 1px solid #e1e9df;
+    border-radius: 11px;
     background: #fff;
     cursor: pointer;
+    transition: background 160ms ease, border-color 160ms ease;
+  }
+
+  .menu-toggle:hover,
+  .menu-toggle.is-open {
+    border-color: #c9dfce;
+    background: #f2f7f0;
   }
 
   .menu-toggle span {
@@ -243,6 +320,7 @@
     height: 2px;
     border-radius: 2px;
     background: #315744;
+    transition: transform 160ms ease, opacity 160ms ease;
   }
 
   .menu-toggle.is-open span:first-child {
@@ -259,16 +337,16 @@
 
   .nav-content {
     position: absolute;
-    top: 62px;
+    top: calc(100% + 8px);
     right: 0;
     left: 0;
     display: none;
     align-items: stretch;
-    padding: 14px;
-    border: 1px solid #edf0e9;
-    border-radius: 9px;
+    padding: 13px;
+    border: 1px solid #e5ece3;
+    border-radius: 14px;
     background: #fffefa;
-    box-shadow: 0 14px 25px rgb(32 53 44 / 10%);
+    box-shadow: 0 18px 38px rgb(32 53 44 / 13%);
   }
 
   .nav-content.is-open {
@@ -284,6 +362,10 @@
     gap: 0;
   }
 
+  .nav-links {
+    padding: 4px;
+  }
+
   .nav-search-form {
     width: 100%;
     min-width: 0;
@@ -295,12 +377,12 @@
   }
 
   .nav-link {
-    padding: 12px 8px;
+    padding: 12px 11px;
   }
 
   .nav-actions {
     border-top: 1px solid #edf0e9;
-    padding-top: 7px;
+    padding-top: 10px;
   }
 
   .nav-actions .button {

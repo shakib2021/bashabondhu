@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Heart } from 'lucide-react';
 import { getStoredUser } from '../../utils/authStorage';
 import { setPropertyWatched } from '../../utils/watchlistApi';
 
@@ -44,7 +45,7 @@ function WatchlistButton({
         disabled={disabled || isSaving}
         onClick={handleClick}
       >
-        <span aria-hidden="true">{watched ? '♥' : '♡'}</span>
+        <Heart aria-hidden="true" className={watched ? 'is-filled' : ''} />
         {showRemoveLabel && <span>{watched ? 'Remove' : 'Save'}</span>}
       </button>
       {errorMessage && <span className="watchlist-control-error" role="alert">{errorMessage}</span>}

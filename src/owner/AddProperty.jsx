@@ -1,5 +1,6 @@
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import { ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { createProperty, getMyProperties, updateProperty } from '../utils/propertyApi';
@@ -128,7 +129,7 @@ function AddProperty() {
           <h1>{isEditing ? 'Edit property' : 'Add a property'}</h1>
           <p>{isEditing ? 'Update your listing details and photos.' : 'Share the essentials to start putting your home on renters’ radar.'}</p>
         </div>
-        <Link className="owner-back-link" to="/owner/properties"><span aria-hidden="true">←</span> Back to properties</Link>
+        <Link className="owner-back-link" to="/owner/properties"><ArrowLeft aria-hidden="true" /> Back to properties</Link>
       </section>
 
       <div className="owner-form-layout">
@@ -290,7 +291,7 @@ function AddProperty() {
           <div className="owner-form-actions">
             <Link className="owner-button owner-button-outline" to="/owner/properties">Cancel</Link>
             <button className="owner-button owner-button-primary" type="submit" disabled={isSaving}>
-              {isSaving ? (isEditing ? 'Saving…' : 'Posting…') : (isEditing ? 'Save changes' : 'Post listing')} <span aria-hidden="true">→</span>
+              {isSaving ? (isEditing ? 'Saving…' : 'Posting…') : (isEditing ? 'Save changes' : 'Post listing')} <ArrowRight aria-hidden="true" />
             </button>
           </div>
           {errorMessage && <p className="owner-form-message" role="alert">{errorMessage}</p>}
@@ -298,13 +299,13 @@ function AddProperty() {
 
         <aside className="owner-form-aside">
           <div className="owner-aside-card">
-            <span className="owner-aside-icon" aria-hidden="true">✦</span>
+            <span className="owner-aside-icon" aria-hidden="true"><Sparkles /></span>
             <span className="owner-eyebrow">A GOOD FIRST IMPRESSION</span>
             <h2>Make your listing feel like home.</h2>
             <p>Accurate details help renters find a place that suits them. Add facilities and clear property photos to make your listing more helpful.</p>
           </div>
           <div className="owner-aside-note">
-            <span aria-hidden="true">✦</span>
+            <Sparkles aria-hidden="true" />
             <p>Enter each facility on its own line. Upload clear photos of the property.</p>
           </div>
           {preview && (

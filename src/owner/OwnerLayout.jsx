@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { ArrowRight, Heart, Home, LayoutGrid, LogOut, MessageSquare, Package, UserRound } from 'lucide-react';
 import NotificationMenu from '../components/common/NotificationMenu';
 import { clearUserProfile, getStoredUser } from '../utils/authStorage';
 import { getUserInfo } from '../utils/userApi';
@@ -61,6 +62,10 @@ function OwnerLayout() {
     navigate('/login');
   };
 
+  const handleProfileUpdate = (updatedProfile) => {
+    setProfile((currentProfile) => ({ ...currentProfile, ...updatedProfile }));
+  };
+
   if (status === 'loading') {
     return (
       <main className="owner-state-page" aria-live="polite">
@@ -118,36 +123,40 @@ function OwnerLayout() {
         <div className="owner-sidebar-label">WORKSPACE</div>
         <nav className="owner-side-nav" aria-label="Owner navigation">
           <NavLink end to="/owner" className={({ isActive }) => `owner-side-link${isActive ? ' is-active' : ''}`}>
-            <span className="owner-nav-icon" aria-hidden="true">⌂</span>
+            <span className="owner-nav-icon" aria-hidden="true"><Home /></span>
             Overview
           </NavLink>
           <NavLink to="/owner/properties" className={({ isActive }) => `owner-side-link${isActive ? ' is-active' : ''}`}>
-            <span className="owner-nav-icon" aria-hidden="true">▤</span>
+            <span className="owner-nav-icon" aria-hidden="true"><LayoutGrid /></span>
             My properties
           </NavLink>
+          <NavLink to="/marketplace/my-listings" className={({ isActive }) => `owner-side-link${isActive ? ' is-active' : ''}`}>
+            <span className="owner-nav-icon" aria-hidden="true"><Package /></span>
+            My marketplace
+          </NavLink>
           <NavLink to="/owner/contact-requests" className={({ isActive }) => `owner-side-link${isActive ? ' is-active' : ''}`}>
-            <span className="owner-nav-icon" aria-hidden="true">♡</span>
+            <span className="owner-nav-icon" aria-hidden="true"><MessageSquare /></span>
             Contact requests
           </NavLink>
           <NavLink end to="/owner#watchlist" className={({ isActive }) => `owner-side-link${isActive ? ' is-active' : ''}`}>
-            <span className="owner-nav-icon" aria-hidden="true">♥</span>
+            <span className="owner-nav-icon" aria-hidden="true"><Heart /></span>
             Watchlist
           </NavLink>
           <NavLink to="/owner/profile" className={({ isActive }) => `owner-side-link${isActive ? ' is-active' : ''}`}>
-            <span className="owner-nav-icon" aria-hidden="true">○</span>
+            <span className="owner-nav-icon" aria-hidden="true"><UserRound /></span>
             My profile
           </NavLink>
         </nav>
 
         <div className="owner-sidebar-bottom">
           <div className="owner-help-card">
-            <span className="owner-help-icon" aria-hidden="true">?</span>
+            <span className="owner-help-icon" aria-hidden="true"><MessageSquare /></span>
             <strong>Need a hand?</strong>
             <p>We’re here to help you get started.</p>
-            <Link to="/#contact">Contact our team <span aria-hidden="true">→</span></Link>
+            <Link to="/#contact">Contact our team <ArrowRight aria-hidden="true" /></Link>
           </div>
           <button className="owner-signout" type="button" onClick={handleSignOut}>
-            <span aria-hidden="true">↗</span>
+            <LogOut aria-hidden="true" />
             Sign out
           </button>
         </div>
@@ -173,7 +182,7 @@ function OwnerLayout() {
         </header>
 
         <main className="owner-content">
-          <Outlet context={{ profile }} />
+          <Outlet context={{ profile, onProfileUpdate: handleProfileUpdate }} />
         </main>
       </div>
     </div>

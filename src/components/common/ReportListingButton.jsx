@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { MoreHorizontal, X } from 'lucide-react';
 import { getStoredUser } from '../../utils/authStorage';
 import { reportProperty } from '../../utils/propertyReportApi';
 
@@ -62,7 +63,7 @@ function ReportListingButton({ propertyId, propertyTitle, onSignInRequired }) {
           setIsFormOpen(false);
         }}
       >
-        <span aria-hidden="true">⋯</span>
+        <MoreHorizontal aria-hidden="true" />
       </button>
       {isMenuOpen && (
         <div className="listing-more-menu">
@@ -78,7 +79,7 @@ function ReportListingButton({ propertyId, propertyTitle, onSignInRequired }) {
         >
           <div className="listing-report-heading">
             <strong id={`report-title-${propertyId}`}>Report this listing</strong>
-            <button type="button" aria-label="Close report form" onClick={() => setIsFormOpen(false)}>×</button>
+            <button type="button" aria-label="Close report form" onClick={() => setIsFormOpen(false)}><X aria-hidden="true" /></button>
           </div>
           {status === 'submitted' ? (
             <div className="listing-report-success" role="status">

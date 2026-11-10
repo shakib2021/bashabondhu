@@ -1,11 +1,17 @@
 const mongoose = require('mongoose');
 
 const notificationSchema = new mongoose.Schema({
-  type: { type: String, enum: ['comment', 'reply', 'contact-request', 'contact-request-decision'], required: true },
+  type: {
+    type: String,
+    enum: ['comment', 'reply', 'contact-request', 'contact-request-decision', 'marketplace-offer', 'marketplace-offer-decision'],
+    required: true,
+  },
   title: { type: String, required: true, maxlength: 160 },
   message: { type: String, required: true, maxlength: 300 },
-  propertyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Accommodation', required: true },
-  propertyTitle: { type: String, required: true, maxlength: 255 },
+  propertyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Accommodation', default: null },
+  propertyTitle: { type: String, default: '', maxlength: 255 },
+  marketplaceItemId: { type: mongoose.Schema.Types.ObjectId, ref: 'MarketplaceItem', default: null },
+  itemTitle: { type: String, default: '', maxlength: 255 },
   commentId: { type: mongoose.Schema.Types.ObjectId, default: null },
   replyId: { type: mongoose.Schema.Types.ObjectId, default: null },
   contactRequestId: { type: mongoose.Schema.Types.ObjectId, default: null },

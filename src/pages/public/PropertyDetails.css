@@ -15,6 +15,11 @@
   text-decoration: none;
 }
 
+.property-back-link svg {
+  width: 15px;
+  height: 15px;
+}
+
 .property-back-link:hover,
 .property-signin-prompt a {
   color: #216748;
@@ -167,8 +172,11 @@
   font-size: 12px;
 }
 
-.property-detail-location span {
+.property-detail-location svg {
+  width: 16px;
+  height: 16px;
   color: #328365;
+  vertical-align: -3px;
 }
 
 .property-detail-heading h1 {
@@ -200,6 +208,21 @@
   color: #32795d;
   font-size: 10px;
   font-weight: 700;
+}
+
+.detail-badge-status {
+  background: #edf6ed;
+  color: #367651;
+}
+
+.detail-badge-status.is-booked {
+  background: #fff5e7;
+  color: #956128;
+}
+
+.detail-badge-status.is-rented {
+  background: #f2f3f2;
+  color: #69756e;
 }
 
 .detail-badge-popular {
@@ -646,4 +669,10 @@
   .property-owner-panel {
     position: static;
   }
+}
+.detail-badge-popular svg {
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+  vertical-align: -2px;
 }

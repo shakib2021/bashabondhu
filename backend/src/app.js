@@ -7,6 +7,7 @@ const Accommodation = require('./models/Accommodation');
 const OwnerVerification = require('./models/OwnerVerification');
 const PropertyImage = require('./models/PropertyImage');
 const PropertyReport = require('./models/PropertyReport');
+const MarketplaceItem = require('./models/MarketplaceItem');
 const User = require('./models/User');
 const { createAuthenticate } = require('./middleware/authenticate');
 const { createImageUploadMiddleware } = require('./middleware/imageUpload');
@@ -17,8 +18,12 @@ const { signAuthToken, verifyAuthToken } = require('./utils/authToken');
 const { serializeUser } = require('./utils/serializeUser');
 
 const MAX_PROPERTY_PHOTO_TOTAL_SIZE = 12 * 1024 * 1024;
+const MAX_MARKETPLACE_PHOTO_TOTAL_SIZE = 12 * 1024 * 1024;
 const isPropertyPhotoUploadWithinLimit = (files) => (
   files.reduce((total, file) => total + file.size, 0) <= MAX_PROPERTY_PHOTO_TOTAL_SIZE
+);
+const isMarketplacePhotoUploadWithinLimit = (files) => (
+  files.reduce((total, file) => total + file.size, 0) <= MAX_MARKETPLACE_PHOTO_TOTAL_SIZE
 );
 
 function getPropertyImageUrls(property) {
@@ -27,6 +32,37 @@ function getPropertyImageUrls(property) {
     if (image?._id) return [`/api/property-images/${property._id}/${image._id}`];
     return [];
   });
+}
+
+function getMarketplaceImageUrls(item) {
+  return (item.images || []).flatMap((image) => {
+    if (typeof image === 'string') return [image];
+    if (image?._id) return [`/api/marketplace/images/${item._id}/${image._id}`];
+    return [];
+  });
+}
+
+function serializeMarketplaceItem(item, includeOffers = false) {
+  const serialized = {
+    ...item,
+    images: getMarketplaceImageUrls(item),
+    sellerId: String(item.sellerId?._id || item.sellerId || ''),
+    sellerName: item.sellerName || item.sellerId?.fullName || '',
+    comments: (item.comments || []).map((comment) => ({
+      _id: comment._id,
+      author: comment.author,
+      text: comment.text,
+      createdAt: comment.createdAt,
+      replies: (comment.replies || []).map((reply) => ({
+        _id: reply._id,
+        author: reply.author,
+        text: reply.text,
+        createdAt: reply.createdAt,
+      })),
+    })),
+  };
+  if (!includeOffers) delete serialized.offers;
+  return serialized;
 }
 
 function getImageBuffer(imageData) {
@@ -43,6 +79,7 @@ function createApp({
   OwnerVerificationModel = OwnerVerification,
   PropertyImageModel = PropertyImage,
   PropertyReportModel = PropertyReport,
+  MarketplaceItemModel = MarketplaceItem,
   firebaseUserLookup = getVerifiedFirebaseUser,
   googleUserLookup = getVerifiedGoogleUser,
   tokenSigner = signAuthToken,
@@ -85,6 +122,16 @@ function createApp({
     fileSizeErrorMessage: 'Each property photo must be 5 MB or smaller, with up to 6 photos.',
     uploadErrorMessage: 'Upload up to 6 property photos.',
     invalidTypeMessage: 'Upload property photos as JPEG, PNG, or WebP files.',
+  });
+  const parseMarketplaceImageUpload = createImageUploadMiddleware({
+    maxFileSize: 5 * 1024 * 1024,
+    maxFiles: 6,
+    maxFields: 1,
+    maxFieldSize: 12 * 1024,
+    fieldName: 'images',
+    fileSizeErrorMessage: 'Each item photo must be 5 MB or smaller, with up to 6 photos.',
+    uploadErrorMessage: 'Upload up to 6 item photos.',
+    invalidTypeMessage: 'Upload item photos as JPEG, PNG, or WebP files.',
   });
   const saveNotification = async (recipientId, actor, notification, recipientRole) => {
     if (!recipientId || String(recipientId) === String(actor._id)) {
@@ -955,6 +1002,8 @@ function createApp({
           message: notification.message,
           propertyId: notification.propertyId,
           propertyTitle: notification.propertyTitle,
+          marketplaceItemId: notification.marketplaceItemId,
+          itemTitle: notification.itemTitle,
           commentId: notification.commentId,
           replyId: notification.replyId,
           contactRequestId: notification.contactRequestId,
@@ -1401,7 +1450,7 @@ function createApp({
       const property = await AccommodationModel.findById(req.params.propertyId)
         .populate('ownerId', 'fullName ownerVerificationStatus')
         .lean();
-      if (!property || property.status !== 'Available') {
+      if (!property) {
         return res.status(404).json({ success: false, message: 'Property not found.' });
       }
 
@@ -1422,6 +1471,7 @@ function createApp({
           facilities: property.facilities,
           images: getPropertyImageUrls(property),
           gender: property.gender,
+          status: property.status,
           rating: property.rating,
           createdAt: property.createdAt,
           owner: {
@@ -1728,7 +1778,7 @@ function createApp({
 
   app.get('/api/properties', async (req, res, next) => {
     try {
-      const properties = await AccommodationModel.find({ status: 'Available' })
+      const properties = await AccommodationModel.find({})
         .sort({ createdAt: -1 })
         .populate('ownerId', 'ownerVerificationStatus')
         .lean();
@@ -1747,12 +1797,440 @@ function createApp({
         bathrooms: property.bathrooms,
         images: getPropertyImageUrls(property),
         gender: property.gender,
+        status: property.status,
         rating: property.rating,
         createdAt: property.createdAt,
         isVerified: property.ownerId?.ownerVerificationStatus === 'approved',
       }));
 
       return res.json({ success: true, properties: publicProperties });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.get('/api/marketplace/items', async (req, res, next) => {
+    try {
+      const items = await MarketplaceItemModel.find({ status: 'available' })
+        .sort({ createdAt: -1 })
+        .lean();
+      const search = String(req.query.search || '').trim().toLowerCase();
+      const matchingItems = search
+        ? items.filter((item) => [item.title, item.description, item.location]
+          .some((value) => String(value || '').toLowerCase().includes(search)))
+        : items;
+      return res.json({
+        success: true,
+        items: matchingItems.map((item) => serializeMarketplaceItem(item)),
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.get('/api/marketplace/items/:itemId', async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.itemId)) {
+        return res.status(404).json({ success: false, message: 'Item not found.' });
+      }
+      const item = await MarketplaceItemModel.findById(req.params.itemId).lean();
+      if (!item) {
+        return res.status(404).json({ success: false, message: 'Item not found.' });
+      }
+      return res.json({ success: true, item: serializeMarketplaceItem(item) });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.post('/api/marketplace/items/:itemId/comments', authenticate, async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.itemId)) {
+        return res.status(404).json({ success: false, message: 'Item not found.' });
+      }
+      const user = await UserModel.findById(req.userId);
+      if (!user || user.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      const text = typeof req.body.text === 'string' ? req.body.text.trim() : '';
+      if (!text || text.length > 1000) {
+        return res.status(400).json({ success: false, message: 'Comments must be between 1 and 1000 characters.' });
+      }
+
+      const item = await MarketplaceItemModel.findOneAndUpdate(
+        { _id: req.params.itemId, status: 'available' },
+        {
+          $push: {
+            comments: {
+              $each: [{ userId: req.userId, author: user.fullName, text }],
+              $slice: -200,
+            },
+          },
+        },
+        { new: true, runValidators: true },
+      );
+      if (!item) {
+        return res.status(404).json({ success: false, message: 'Item not found.' });
+      }
+
+      const comment = item.comments[item.comments.length - 1];
+      await saveNotification(item.sellerId, user, {
+        type: 'comment',
+        title: `${user.fullName} commented on your item`,
+        message: `${item.title}: ${text.slice(0, 180)}`,
+        marketplaceItemId: item._id,
+        itemTitle: item.title,
+        commentId: comment._id,
+      });
+      return res.status(201).json({
+        success: true,
+        comment: {
+          _id: comment._id,
+          author: comment.author,
+          text: comment.text,
+          createdAt: comment.createdAt,
+          replies: [],
+        },
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.post('/api/marketplace/items/:itemId/comments/:commentId/replies', authenticate, async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.itemId) || !mongoose.isValidObjectId(req.params.commentId)) {
+        return res.status(404).json({ success: false, message: 'Comment not found.' });
+      }
+      const user = await UserModel.findById(req.userId);
+      if (!user || user.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      const text = typeof req.body.text === 'string' ? req.body.text.trim() : '';
+      if (!text || text.length > 1000) {
+        return res.status(400).json({ success: false, message: 'Replies must be between 1 and 1000 characters.' });
+      }
+
+      const item = await MarketplaceItemModel.findOneAndUpdate(
+        {
+          _id: req.params.itemId,
+          status: 'available',
+          'comments._id': req.params.commentId,
+        },
+        {
+          $push: {
+            'comments.$.replies': {
+              $each: [{ userId: req.userId, author: user.fullName, text }],
+              $slice: -100,
+            },
+          },
+        },
+        { new: true, runValidators: true },
+      );
+      if (!item) {
+        return res.status(404).json({ success: false, message: 'Comment not found.' });
+      }
+
+      const comment = item.comments.find((entry) => String(entry._id) === req.params.commentId);
+      const reply = comment.replies[comment.replies.length - 1];
+      const notificationRecipients = new Map([
+        [String(comment.userId), 'comment-author'],
+        [String(item.sellerId), 'listing-seller'],
+      ]);
+      for (const [recipientId, recipientType] of notificationRecipients) {
+        const isCommentAuthor = recipientType === 'comment-author';
+        await saveNotification(recipientId, user, {
+          type: 'reply',
+          title: isCommentAuthor
+            ? `${user.fullName} replied to your comment`
+            : `${user.fullName} replied to a comment on your item`,
+          message: `${item.title}: ${text.slice(0, 180)}`,
+          marketplaceItemId: item._id,
+          itemTitle: item.title,
+          commentId: comment._id,
+          replyId: reply._id,
+        });
+      }
+      return res.status(201).json({
+        success: true,
+        reply: {
+          _id: reply._id,
+          author: reply.author,
+          text: reply.text,
+          createdAt: reply.createdAt,
+        },
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.post('/api/marketplace/items', authenticate, parseMarketplaceImageUpload, async (req, res, next) => {
+    try {
+      const user = await UserModel.findById(req.userId);
+      if (!user || user.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+
+      let itemData = req.body;
+      if (req.is('multipart/form-data')) {
+        try {
+          itemData = JSON.parse(req.body.item || '{}');
+        } catch {
+          return res.status(400).json({ success: false, message: 'Item details must contain valid JSON.' });
+        }
+      }
+      if (!itemData || typeof itemData !== 'object' || Array.isArray(itemData)) {
+        return res.status(400).json({ success: false, message: 'Item details must be an object.' });
+      }
+      const title = typeof itemData.title === 'string' ? itemData.title.trim() : '';
+      const location = typeof itemData.location === 'string' ? itemData.location.trim() : '';
+      const description = typeof itemData.description === 'string' ? itemData.description.trim() : '';
+      const price = Number(itemData.price);
+      if (!title || title.length > 120 || !location || location.length > 255) {
+        return res.status(400).json({ success: false, message: 'Enter an item name and location within the allowed length.' });
+      }
+      if (description.length > 2000) {
+        return res.status(400).json({ success: false, message: 'The description must be 2000 characters or fewer.' });
+      }
+      if (!Number.isFinite(price) || price <= 0) {
+        return res.status(400).json({ success: false, message: 'Enter a valid price greater than zero.' });
+      }
+      if (!['New', 'Like new', 'Good', 'Fair'].includes(itemData.condition)) {
+        return res.status(400).json({ success: false, message: 'Choose a valid item condition.' });
+      }
+
+      const uploadedImages = req.files || [];
+      if (uploadedImages.some((file) => !isValidImage(file))) {
+        return res.status(400).json({ success: false, message: 'The uploaded files must be valid JPEG, PNG, or WebP images.' });
+      }
+      if (!isMarketplacePhotoUploadWithinLimit(uploadedImages)) {
+        return res.status(413).json({
+          success: false,
+          message: 'Item photos must total 12 MB or less per listing.',
+        });
+      }
+
+      const item = await MarketplaceItemModel.create({
+        title,
+        description,
+        price,
+        condition: itemData.condition,
+        location,
+        sellerId: user._id,
+        sellerName: user.fullName,
+        images: uploadedImages.map((file) => ({
+          _id: new mongoose.Types.ObjectId(),
+          data: mongoose.mongo.BSON.Binary.createFromBase64(file.buffer.toString('base64')),
+          mimeType: file.mimetype,
+        })),
+      });
+      return res.status(201).json({
+        success: true,
+        item: serializeMarketplaceItem(item.toObject()),
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.get('/api/marketplace/my-items', authenticate, async (req, res, next) => {
+    try {
+      const user = await UserModel.findById(req.userId);
+      if (!user || user.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      const items = await MarketplaceItemModel.find({ sellerId: user._id })
+        .sort({ createdAt: -1 })
+        .lean();
+      return res.json({
+        success: true,
+        items: items.map((item) => serializeMarketplaceItem(item, true)),
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.get('/api/marketplace/my-offers', authenticate, async (req, res, next) => {
+    try {
+      const user = await UserModel.findById(req.userId);
+      if (!user || user.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      const items = await MarketplaceItemModel.find({ 'offers.buyerId': user._id })
+        .sort({ createdAt: -1 })
+        .lean();
+      const offers = items.flatMap((item) => (
+        (item.offers || [])
+          .filter((offer) => String(offer.buyerId) === String(user._id))
+          .map((offer) => ({
+            item: serializeMarketplaceItem(item),
+            offer: {
+              _id: offer._id,
+              amount: offer.amount,
+              status: offer.status,
+              createdAt: offer.createdAt,
+            },
+          }))
+      ));
+      return res.json({ success: true, offers });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.post('/api/marketplace/items/:itemId/offers', authenticate, async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.itemId)) {
+        return res.status(404).json({ success: false, message: 'Item not found.' });
+      }
+      const user = await UserModel.findById(req.userId);
+      if (!user || user.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      const item = await MarketplaceItemModel.findById(req.params.itemId);
+      if (!item) {
+        return res.status(404).json({ success: false, message: 'Item not found.' });
+      }
+      if (item.status !== 'available') {
+        return res.status(409).json({ success: false, message: 'This item has already been sold.' });
+      }
+      if (String(item.sellerId) === String(user._id)) {
+        return res.status(403).json({ success: false, message: 'You cannot make an offer on your own item.' });
+      }
+      const amount = Number(req.body.amount);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return res.status(400).json({ success: false, message: 'Enter a valid offer greater than zero.' });
+      }
+      item.offers.push({
+        buyerId: user._id,
+        buyerName: user.fullName,
+        amount,
+        status: 'pending',
+      });
+      await item.save();
+      await saveNotification(item.sellerId, user, {
+        type: 'marketplace-offer',
+        title: `${user.fullName} made an offer on your item`,
+        message: `${item.title}: ৳${amount.toLocaleString('en-BD')}`,
+        marketplaceItemId: item._id,
+        itemTitle: item.title,
+      });
+      return res.status(201).json({
+        success: true,
+        offer: item.offers[item.offers.length - 1],
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.patch('/api/marketplace/items/:itemId/offers/:offerId', authenticate, async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.itemId)) {
+        return res.status(404).json({ success: false, message: 'Item not found.' });
+      }
+      const user = await UserModel.findById(req.userId);
+      if (!user || user.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      const item = await MarketplaceItemModel.findById(req.params.itemId);
+      if (!item || String(item.sellerId) !== String(user._id)) {
+        return res.status(404).json({ success: false, message: 'Item not found.' });
+      }
+      const offer = item.offers.id
+        ? item.offers.id(req.params.offerId)
+        : item.offers.find((entry) => String(entry._id) === String(req.params.offerId));
+      if (!offer) {
+        return res.status(404).json({ success: false, message: 'Offer not found.' });
+      }
+      if (!['accepted', 'rejected'].includes(req.body.status)) {
+        return res.status(400).json({ success: false, message: 'Choose accept or reject for this offer.' });
+      }
+      if (offer.status !== 'pending') {
+        return res.status(409).json({ success: false, message: 'This offer has already been answered.' });
+      }
+      if (req.body.status === 'accepted') {
+        if (item.status !== 'available') {
+          return res.status(409).json({ success: false, message: 'This item has already been sold.' });
+        }
+        if (item.offers.some((entry) => entry.status === 'accepted')) {
+          return res.status(409).json({ success: false, message: 'Another offer has already been accepted.' });
+        }
+      }
+      offer.status = req.body.status;
+      await item.save();
+      await saveNotification(offer.buyerId, user, {
+        type: 'marketplace-offer-decision',
+        title: `Your offer was ${req.body.status}`,
+        message: `${item.title}: the seller ${req.body.status} your offer of ৳${Number(offer.amount).toLocaleString('en-BD')}.`,
+        marketplaceItemId: item._id,
+        itemTitle: item.title,
+      });
+      return res.json({ success: true, offer });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.patch('/api/marketplace/items/:itemId/status', authenticate, async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.itemId)) {
+        return res.status(404).json({ success: false, message: 'Item not found.' });
+      }
+      const user = await UserModel.findById(req.userId);
+      if (!user || user.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      const item = await MarketplaceItemModel.findById(req.params.itemId);
+      if (!item || String(item.sellerId) !== String(user._id)) {
+        return res.status(404).json({ success: false, message: 'Item not found.' });
+      }
+      if (req.body.status !== 'sold') {
+        return res.status(400).json({ success: false, message: 'Items can only be marked as sold.' });
+      }
+      item.status = 'sold';
+      for (const offer of item.offers) {
+        if (offer.status === 'pending') {
+          offer.status = 'rejected';
+          await saveNotification(offer.buyerId, user, {
+            type: 'marketplace-offer-decision',
+            title: 'The item has been marked as sold',
+            message: `${item.title}: your offer was closed because the seller marked the item as sold.`,
+            marketplaceItemId: item._id,
+            itemTitle: item.title,
+          });
+        }
+      }
+      await item.save();
+      return res.json({ success: true, item: serializeMarketplaceItem(item.toObject(), true) });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.get('/api/marketplace/images/:itemId/:imageId', async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.itemId) || !mongoose.isValidObjectId(req.params.imageId)) {
+        return res.status(404).json({ success: false, message: 'Image not found.' });
+      }
+      const item = await MarketplaceItemModel.findById(req.params.itemId);
+      const image = item?.images?.find((entry) => String(entry._id) === String(req.params.imageId));
+      const buffer = getImageBuffer(image?.data);
+      if (
+        !image
+        || !buffer
+        || !['image/jpeg', 'image/png', 'image/webp'].includes(image.mimeType)
+      ) {
+        return res.status(404).json({ success: false, message: 'Image not found.' });
+      }
+      res.set({
+        'Cache-Control': 'public, max-age=86400',
+        'Cross-Origin-Resource-Policy': 'cross-origin',
+        'X-Content-Type-Options': 'nosniff',
+      });
+      return res.type(image.mimeType).send(buffer);
     } catch (error) {
       return next(error);
     }

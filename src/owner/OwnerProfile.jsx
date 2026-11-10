@@ -1,13 +1,25 @@
 import { useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { getOwnerVerification, submitOwnerVerification } from '../utils/ownerVerificationApi';
+import { updateUserInfo } from '../utils/userApi';
 
 function OwnerProfile() {
-  const { profile } = useOutletContext();
+  const { profile, onProfileUpdate } = useOutletContext();
   const [verification, setVerification] = useState(null);
   const [verificationError, setVerificationError] = useState('');
   const [isLoadingVerification, setIsLoadingVerification] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileMessage, setProfileMessage] = useState('');
+  const [profileError, setProfileError] = useState(false);
+  const [formValues, setFormValues] = useState({
+    fullName: profile.fullName || '',
+    phone: profile.phone || '',
+    occupation: profile.occupation || '',
+    address: profile.address || '',
+    profileImage: profile.profileImage || '',
+  });
   const fields = [
     ['Full name', profile.fullName],
     ['Email address', profile.email],
@@ -33,6 +45,80 @@ function OwnerProfile() {
       isMounted = false;
     };
   }, []);
+
+  const beginEditing = () => {
+    setFormValues({
+      fullName: profile.fullName || '',
+      phone: profile.phone || '',
+      occupation: profile.occupation || '',
+      address: profile.address || '',
+      profileImage: profile.profileImage || '',
+    });
+    setProfileMessage('');
+    setProfileError(false);
+    setIsEditing(true);
+  };
+
+  const handleProfileChange = (event) => {
+    const { name, value } = event.target;
+    setFormValues((currentValues) => ({ ...currentValues, [name]: value }));
+  };
+
+  const cancelEditing = () => {
+    setIsEditing(false);
+    setProfileMessage('');
+    setProfileError(false);
+  };
+
+  const handleProfileSubmit = async (event) => {
+    event.preventDefault();
+    setIsSavingProfile(true);
+    setProfileMessage('');
+    setProfileError(false);
+
+    try {
+      const fullName = formValues.fullName.trim();
+      if (!fullName) {
+        throw new Error('Enter your full name.');
+      }
+
+      const profileImage = formValues.profileImage.trim();
+      if (profileImage) {
+        let imageUrl;
+        try {
+          imageUrl = new URL(profileImage);
+        } catch {
+          throw new Error('Enter a valid profile image URL.');
+        }
+        if (!['https:', 'http:'].includes(imageUrl.protocol)) {
+          throw new Error('Profile image URLs must use HTTP or HTTPS.');
+        }
+      }
+
+      const updatedProfile = await updateUserInfo({
+        fullName,
+        phone: formValues.phone.trim() || null,
+        occupation: formValues.occupation.trim() || null,
+        address: formValues.address.trim() || null,
+        profileImage: profileImage || null,
+      });
+      setFormValues({
+        fullName: updatedProfile.fullName || '',
+        phone: updatedProfile.phone || '',
+        occupation: updatedProfile.occupation || '',
+        address: updatedProfile.address || '',
+        profileImage: updatedProfile.profileImage || '',
+      });
+      onProfileUpdate(updatedProfile);
+      setIsEditing(false);
+      setProfileMessage('Your profile has been updated.');
+    } catch (error) {
+      setProfileMessage(error.message || 'Could not update your profile.');
+      setProfileError(true);
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
 
   const handleVerificationSubmit = async (event) => {
     event.preventDefault();
@@ -73,16 +159,110 @@ function OwnerProfile() {
             <span className="owner-eyebrow">PERSONAL INFORMATION</span>
             <h2>Profile details</h2>
           </div>
-          {isVerified && <span className="owner-profile-verification is-verified">Verified owner</span>}
+          <div className="owner-profile-heading-actions">
+            {isVerified && <span className="owner-profile-verification is-verified">Verified owner</span>}
+            {!isEditing && (
+              <button className="owner-button owner-button-outline" type="button" onClick={beginEditing}>
+                Edit profile
+              </button>
+            )}
+          </div>
         </div>
-        <div className="owner-profile-fields">
-          {fields.map(([label, value]) => (
-            <div className="owner-profile-field" key={label}>
-              <span>{label}</span>
-              <strong>{value}</strong>
+        {isEditing ? (
+          <form className="owner-profile-form" onSubmit={handleProfileSubmit}>
+            <div className="owner-profile-fields">
+              <label className="owner-profile-field">
+                <span>Full name</span>
+                <input
+                  autoComplete="name"
+                  name="fullName"
+                  required
+                  maxLength={255}
+                  value={formValues.fullName}
+                  onChange={handleProfileChange}
+                />
+              </label>
+              <label className="owner-profile-field">
+                <span>Email address</span>
+                <input value={profile.email} readOnly />
+                <small>Email is managed by your sign-in provider.</small>
+              </label>
+              <label className="owner-profile-field">
+                <span>Phone</span>
+                <input
+                  autoComplete="tel"
+                  name="phone"
+                  type="tel"
+                  maxLength={30}
+                  value={formValues.phone}
+                  onChange={handleProfileChange}
+                />
+              </label>
+              <label className="owner-profile-field">
+                <span>Occupation</span>
+                <input
+                  autoComplete="organization-title"
+                  name="occupation"
+                  maxLength={150}
+                  value={formValues.occupation}
+                  onChange={handleProfileChange}
+                />
+              </label>
+              <label className="owner-profile-field owner-profile-field-wide">
+                <span>Address</span>
+                <textarea
+                  autoComplete="street-address"
+                  name="address"
+                  rows="3"
+                  maxLength={500}
+                  value={formValues.address}
+                  onChange={handleProfileChange}
+                />
+              </label>
+              <label className="owner-profile-field owner-profile-field-wide">
+                <span>Profile image URL</span>
+                <input
+                  name="profileImage"
+                  type="url"
+                  maxLength={1000}
+                  placeholder="https://example.com/profile.jpg"
+                  value={formValues.profileImage}
+                  onChange={handleProfileChange}
+                />
+              </label>
             </div>
-          ))}
-        </div>
+            {profileMessage && (
+              <p className={`owner-profile-message${profileError ? ' is-error' : ' is-success'}`} role={profileError ? 'alert' : 'status'}>
+                {profileMessage}
+              </p>
+            )}
+            <div className="owner-profile-form-actions">
+              <button
+                className="owner-button owner-button-outline"
+                type="button"
+                disabled={isSavingProfile}
+                onClick={cancelEditing}
+              >
+                Cancel
+              </button>
+              <button className="owner-button owner-button-primary" type="submit" disabled={isSavingProfile}>
+                {isSavingProfile ? 'Saving…' : 'Save changes'}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <>
+            <div className="owner-profile-fields">
+              {fields.map(([label, value]) => (
+                <div className="owner-profile-field" key={label}>
+                  <span>{label}</span>
+                  <strong>{value}</strong>
+                </div>
+              ))}
+            </div>
+            {profileMessage && <p className="owner-profile-message is-success" role="status">{profileMessage}</p>}
+          </>
+        )}
       </section>
       <section className="owner-panel owner-verification-panel">
         <div className="owner-panel-heading">

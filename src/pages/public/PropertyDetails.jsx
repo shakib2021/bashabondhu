@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
+import { ArrowLeft, ChevronLeft, ChevronRight, MapPin, Star } from 'lucide-react';
 import Navbar from '../../components/common/Navbar';
 import Footer from '../../components/common/Footer';
 import '../../components/common/footer.css';
@@ -185,7 +186,7 @@ function PropertyDetails() {
     <>
       <Navbar />
       <main className="property-detail-page section-wrap">
-        <Link className="property-back-link" to="/#homes"><span aria-hidden="true">←</span> Back to homes</Link>
+        <Link className="property-back-link" to="/#homes"><ArrowLeft aria-hidden="true" /> Back to homes</Link>
         {loadStatus === 'loading' && <p className="property-page-state" role="status">Loading property…</p>}
         {loadStatus === 'error' && (
           <section className="property-page-state" role="alert">
@@ -232,7 +233,7 @@ function PropertyDetails() {
                           aria-label="Previous property photo"
                           onClick={showPreviousImage}
                         >
-                          <span aria-hidden="true">‹</span>
+                          <ChevronLeft aria-hidden="true" />
                         </button>
                         <button
                           className="property-gallery-arrow property-gallery-next"
@@ -240,7 +241,7 @@ function PropertyDetails() {
                           aria-label="Next property photo"
                           onClick={showNextImage}
                         >
-                          <span aria-hidden="true">›</span>
+                          <ChevronRight aria-hidden="true" />
                         </button>
                         <span className="property-gallery-count" aria-live="polite">
                           {activeImageIndex + 1} / {propertyImages.length}
@@ -266,12 +267,15 @@ function PropertyDetails() {
                   )}
                 </div>
                 <div className="property-detail-heading">
-                  <p className="property-detail-location"><span aria-hidden="true">⌖</span> {property.location}, {property.city}</p>
+                  <p className="property-detail-location"><MapPin aria-hidden="true" /> {property.location}, {property.city}</p>
                   <h1 id="property-title">{property.title}</h1>
                   <p className="property-detail-type">{property.accommodation_type}</p>
                   <div className="property-detail-badges">
+                    <span className={`detail-badge detail-badge-status is-${(property.status || 'Available').toLowerCase()}`}>
+                      {property.status || 'Available'}
+                    </span>
                     {property.owner?.isVerified && <span className="detail-badge detail-badge-verified">Verified owner</span>}
-                    {Number(property.rating) >= 4.5 && <span className="detail-badge detail-badge-popular">Popular · ★ {property.rating}</span>}
+                    {Number(property.rating) >= 4.5 && <span className="detail-badge detail-badge-popular">Popular · <Star aria-hidden="true" /> {property.rating}</span>}
                     <span className="detail-posted">Posted {formatDate(property.createdAt)}</span>
                   </div>
                 </div>
@@ -419,7 +423,10 @@ function PropertyDetails() {
                 <strong>{property.owner?.fullName || 'Property owner'}</strong>
                 {property.owner?.isVerified && <span className="detail-badge detail-badge-verified">Verified owner</span>}
                 {isTenant ? (
-                  <>
+                  property.status !== 'Available' ? (
+                    <p>This home is no longer available for contact requests.</p>
+                  ) : (
+                    <>
                     <p>Send a request to ask the owner about this home.</p>
                     {contactRequest?.status === 'pending' ? (
                       <span className="contact-request-state">Request sent · awaiting response</span>
@@ -453,16 +460,23 @@ function PropertyDetails() {
                       </button>
                     )}
                     {contactRequestError && <p className="property-comment-error" role="alert">{contactRequestError}</p>}
-                  </>
+                    </>
+                  )
                 ) : session?.token ? (
-                  <p>Contact requests are available to tenant accounts.</p>
+                  <p>{property.status === 'Available'
+                    ? 'Contact requests are available to tenant accounts.'
+                    : 'This home is no longer available for contact requests.'}</p>
                 ) : (
-                  <>
+                  property.status !== 'Available' ? (
+                    <p>This home is no longer available for contact requests.</p>
+                  ) : (
+                    <>
                     <p>Sign in as a tenant to request contact about this home.</p>
                     <Link className="property-action-link" to="/login" state={{ from: `${location.pathname}${location.search}#contact-request` }}>
                       Sign in to request contact
                     </Link>
-                  </>
+                    </>
+                  )
                 )}
               </aside>
             </section>

@@ -257,6 +257,10 @@ test('shows tenant workspace navigation and an empty notifications state', async
   const tenantNavigation = await screen.findByRole('navigation', { name: 'Tenant navigation' });
   expect(tenantNavigation).toBeInTheDocument();
   expect(within(tenantNavigation).getByRole('link', { name: 'My profile' })).toBeInTheDocument();
+  expect(within(tenantNavigation).getByRole('link', { name: 'My marketplace' })).toHaveAttribute(
+    'href',
+    '/marketplace/my-listings',
+  );
   fireEvent.click(screen.getByRole('button', { name: 'Notifications' }));
   expect(screen.getByText('You’re all caught up.')).toBeInTheDocument();
 });

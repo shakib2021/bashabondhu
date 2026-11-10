@@ -7,6 +7,7 @@ import {
 } from 'firebase/auth';
 import { useGoogleLogin } from '@react-oauth/google';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { House, KeyRound } from 'lucide-react';
 import GoogleAuthButton from '../../components/common/GoogleAuthButton';
 import { getSafeReturnTo } from '../../utils/authNavigation';
 import { registerFirebaseUser } from '../../utils/firebaseAuth';
@@ -201,7 +202,7 @@ function Register() {
                 checked={accountType === 'tenant'}
                 onChange={selectAccountType}
               />
-              <span className="account-type-icon" aria-hidden="true">⌂</span>
+              <span className="account-type-icon" aria-hidden="true"><KeyRound /></span>
               <span className="account-type-copy">
                 <strong>Tenant</strong>
                 <small>want to rent a home.</small>
@@ -215,7 +216,7 @@ function Register() {
                 checked={accountType === 'owner'}
                 onChange={selectAccountType}
               />
-              <span className="account-type-icon" aria-hidden="true">⌂</span>
+              <span className="account-type-icon" aria-hidden="true"><House /></span>
               <span className="account-type-copy">
                 <strong>Owner</strong>
                 <small>I want to list a house.</small>

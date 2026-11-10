@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { Search } from 'lucide-react';
 import { getStoredUser } from '../../utils/authStorage';
 import './Navbar.css';
 
@@ -11,6 +12,9 @@ function Navbar() {
   const [searchTerm, setSearchTerm] = useState(() => searchParams.get('search') || '');
   const location = useLocation();
   const navigate = useNavigate();
+  const isHomePage = location.pathname === '/';
+  const isHomeSection = isHomePage && location.hash !== '#homes';
+  const isListingsSection = isHomePage && location.hash === '#homes';
 
   const closeMenu = () => setMenuOpen(false);
   const returnTo = `${location.pathname}${location.search}${location.hash}`;
@@ -86,12 +90,11 @@ function Navbar() {
           id="primary-navigation"
         >
           <div className="nav-links">
-            <Link className="nav-link active" to="/#home" onClick={closeMenu}>Home</Link>
-            <Link className="nav-link" to="/#homes" onClick={closeMenu}>Find a home</Link>
-            <Link className="nav-link" to="/#how-it-works" onClick={closeMenu}>How it works</Link>
-            <Link className="nav-link" to="/#about" onClick={closeMenu}>About us</Link>
-            </div>
-            <form className="nav-search-form" role="search" onSubmit={handleSearch}>
+            <Link className={`nav-link${isHomeSection ? ' active' : ''}`} to="/#home" onClick={closeMenu}>Home</Link>
+            <Link className={`nav-link${isListingsSection ? ' active' : ''}`} to="/#homes" onClick={closeMenu}>Find a home</Link>
+            <Link className={`nav-link${location.pathname.startsWith('/marketplace') ? ' active' : ''}`} to="/marketplace" onClick={closeMenu}>Buy &amp; sell</Link>
+          </div>
+          <form className="nav-search-form" role="search" onSubmit={handleSearch}>
             <input
               aria-label="Search homes"
               type="search"
@@ -99,7 +102,10 @@ function Navbar() {
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
             />
-            <button className="nav-search-button" type="submit">Search</button>
+            <button className="nav-search-button" type="submit">
+              <Search aria-hidden="true" />
+              <span>Search</span>
+            </button>
           </form>
           <div className="nav-actions">
             {user ? (

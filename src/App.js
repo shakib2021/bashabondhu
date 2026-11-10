@@ -2,6 +2,10 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import Home from './pages/public/Home';
 import PropertyDetails from './pages/public/PropertyDetails';
+import Marketplace from './pages/public/Marketplace';
+import MarketplaceItemDetails from './pages/public/MarketplaceItemDetails';
+import SellMarketplaceItem from './pages/public/SellMarketplaceItem';
+import MyMarketplace from './pages/public/MyMarketplace';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import TenantDashboard from './tenant/TenantDashboard';
@@ -25,6 +29,10 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/properties/:propertyId" element={<PropertyDetails />} />
+          <Route path="/marketplace" element={<Marketplace />} />
+          <Route path="/marketplace/items/:itemId" element={<MarketplaceItemDetails />} />
+          <Route path="/marketplace/sell" element={<SellMarketplaceItem />} />
+          <Route path="/marketplace/my-listings" element={<MyMarketplace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/tenant/dashboard" element={<TenantDashboard />} />

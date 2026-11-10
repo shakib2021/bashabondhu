@@ -1,9 +1,22 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Bell } from 'lucide-react';
 import { getNotifications, markNotificationRead } from '../../utils/notificationApi';
 import { getStoredUser } from '../../utils/authStorage';
 
 function notificationHref(notification) {
+  if (notification.marketplaceItemId) {
+    if (notification.type === 'marketplace-offer') {
+      return `/marketplace/my-listings#listing-${notification.marketplaceItemId}`;
+    }
+    if (notification.type === 'marketplace-offer-decision') {
+      return '/marketplace/my-listings#my-offers';
+    }
+    const anchor = notification.replyId
+      ? `reply-${notification.replyId}`
+      : `comment-${notification.commentId}`;
+    return `/marketplace/items/${notification.marketplaceItemId}#${anchor}`;
+  }
   if (notification.type === 'contact-request') return '/owner/contact-requests';
   if (notification.type === 'contact-request-decision') {
     return `/properties/${notification.propertyId}#contact-request`;
@@ -74,9 +87,7 @@ function NotificationMenu() {
         aria-expanded={isOpen}
         onClick={() => setIsOpen((open) => !open)}
       >
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+        <Bell aria-hidden="true" />
         {unreadCount > 0 && <span className="owner-notification-count">{unreadCount > 9 ? '9+' : unreadCount}</span>}
       </button>
       {isOpen && (

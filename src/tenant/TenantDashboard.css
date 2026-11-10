@@ -118,7 +118,12 @@
   border-radius: 18px;
   background: #eaf5ec;
   color: #2a815e;
-  font-size: 30px;
+}
+
+.tenant-welcome-icon svg {
+  width: 27px;
+  height: 27px;
+  stroke-width: 1.8;
 }
 
 .tenant-profile-card {

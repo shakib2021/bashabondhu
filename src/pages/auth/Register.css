@@ -165,6 +165,12 @@
   font-size: 20px;
 }
 
+.account-type-icon svg {
+  width: 19px;
+  height: 19px;
+  stroke-width: 1.8;
+}
+
 .account-type-copy {
   display: grid;
   gap: 4px;

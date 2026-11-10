@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate, NavLink, useNavigate } from 'react-router-dom';
+import { ArrowRight, Heart, Home, LogOut, Package, Search, UserRound, MessageSquare } from 'lucide-react';
 import NotificationMenu from '../components/common/NotificationMenu';
 import WatchlistPanel from '../components/common/WatchlistPanel';
 import { clearUserProfile, getStoredUser } from '../utils/authStorage';
@@ -153,34 +154,38 @@ function TenantDashboard() {
     <div className="owner-app tenant-app">
       <aside className="owner-sidebar">
         <Link className="owner-brand" to="/" aria-label="BashaBondhu home">
-          <span className="owner-brand-mark" aria-hidden="true">B</span>
+          <span className="owner-brand-mark" aria-hidden="true"><Home /></span>
           <span>Basha<span className="owner-brand-accent">Bondhu</span></span>
         </Link>
         <div className="owner-sidebar-label">WORKSPACE</div>
         <nav className="owner-side-nav" aria-label="Tenant navigation">
           <NavLink end to="/tenant/dashboard" className={({ isActive }) => `owner-side-link${isActive ? ' is-active' : ''}`}>
-            <span className="owner-nav-icon" aria-hidden="true">○</span>
+            <span className="owner-nav-icon" aria-hidden="true"><UserRound /></span>
             My profile
           </NavLink>
           <Link className="owner-side-link" to="/#homes">
-            <span className="owner-nav-icon" aria-hidden="true">⌕</span>
+            <span className="owner-nav-icon" aria-hidden="true"><Search /></span>
             Browse homes
           </Link>
+          <Link className="owner-side-link" to="/marketplace/my-listings">
+            <span className="owner-nav-icon" aria-hidden="true"><Package /></span>
+            My marketplace
+          </Link>
           <Link className="owner-side-link" to="/tenant/dashboard#watchlist">
-            <span className="owner-nav-icon" aria-hidden="true">♡</span>
+            <span className="owner-nav-icon" aria-hidden="true"><Heart /></span>
             Watchlist
           </Link>
         </nav>
         <div className="owner-sidebar-bottom">
           <div className="owner-help-card">
-            <span className="owner-help-icon" aria-hidden="true">?</span>
+            <span className="owner-help-icon" aria-hidden="true"><MessageSquare /></span>
             <strong>Need a hand?</strong>
             <p>We’re here to help you find a place.</p>
-            <Link to="/#contact">Contact our team <span aria-hidden="true">→</span></Link>
+            <Link to="/#contact">Contact our team <ArrowRight aria-hidden="true" /></Link>
           </div>
           {status !== 'signed-out' && (
             <button className="owner-signout" type="button" onClick={handleSignOut}>
-              <span aria-hidden="true">↗</span>
+              <LogOut aria-hidden="true" />
               Sign out
             </button>
           )}
@@ -213,7 +218,7 @@ function TenantDashboard() {
               <h1 id="tenant-dashboard-title">Your profile</h1>
               <p>Manage the personal details connected to your BashaBondhu account.</p>
             </div>
-            <span className="tenant-welcome-icon" aria-hidden="true">⌂</span>
+            <span className="tenant-welcome-icon" aria-hidden="true"><Home /></span>
           </section>
 
         {status === 'loading' && (

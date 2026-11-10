@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { FileText, Flag, Home, LayoutDashboard, LogOut, ShieldCheck, Users } from 'lucide-react';
 import { clearUserProfile, getStoredUser } from '../utils/authStorage';
 import { getUserInfo } from '../utils/userApi';
 import '../owner/OwnerDashboard.css';
@@ -103,29 +104,29 @@ function AdminLayout() {
     <div className="owner-app">
       <aside className="owner-sidebar admin-sidebar">
         <Link className="owner-brand" to="/" aria-label="BashaBondhu home">
-          <span className="owner-brand-mark" aria-hidden="true">⌂</span>
+          <span className="owner-brand-mark" aria-hidden="true"><Home /></span>
           <span>Basha<span className="owner-brand-accent">Bondhu</span></span>
         </Link>
         <div className="owner-sidebar-label">ADMIN WORKSPACE</div>
         <nav className="owner-side-nav" aria-label="Admin navigation">
           <NavLink end to="/admin" className={({ isActive }) => `owner-side-link${isActive ? ' is-active' : ''}`}>
-            <span className="owner-nav-icon" aria-hidden="true">▦</span>
+            <span className="owner-nav-icon" aria-hidden="true"><LayoutDashboard /></span>
             Overview
           </NavLink>
           <NavLink to="/admin/verifications" className={({ isActive }) => `owner-side-link${isActive ? ' is-active' : ''}`}>
-            <span className="owner-nav-icon" aria-hidden="true">✓</span>
+            <span className="owner-nav-icon" aria-hidden="true"><ShieldCheck /></span>
             Pending verification
           </NavLink>
           <NavLink to="/admin/posts" className={({ isActive }) => `owner-side-link${isActive ? ' is-active' : ''}`}>
-            <span className="owner-nav-icon" aria-hidden="true">▤</span>
+            <span className="owner-nav-icon" aria-hidden="true"><FileText /></span>
             Posts
           </NavLink>
           <NavLink to="/admin/reports" className={({ isActive }) => `owner-side-link${isActive ? ' is-active' : ''}`}>
-            <span className="owner-nav-icon" aria-hidden="true">⚑</span>
+            <span className="owner-nav-icon" aria-hidden="true"><Flag /></span>
             Reports
           </NavLink>
           <NavLink to="/admin/users" className={({ isActive }) => `owner-side-link${isActive ? ' is-active' : ''}`}>
-            <span className="owner-nav-icon" aria-hidden="true">♙</span>
+            <span className="owner-nav-icon" aria-hidden="true"><Users /></span>
             Users
           </NavLink>
         </nav>
@@ -135,7 +136,7 @@ function AdminLayout() {
             <p>Review listings, reports, accounts, and owner identities.</p>
           </div>
           <button className="owner-signout" type="button" onClick={handleSignOut}>
-            <span aria-hidden="true">↗</span>
+            <LogOut aria-hidden="true" />
             Sign out
           </button>
         </div>

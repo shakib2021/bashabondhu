@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { FileText, Flag, ShieldCheck, Users } from 'lucide-react';
 import { getAdminSummary } from '../utils/adminApi';
 
 function AdminOverview() {
@@ -57,19 +58,19 @@ function AdminOverview() {
       )}
       <section className="admin-action-grid" aria-label="Admin tools">
         <Link className="admin-action-card" to="/admin/verifications">
-          <span aria-hidden="true">✓</span>
+          <span aria-hidden="true"><ShieldCheck /></span>
           <div><strong>Review owner identities</strong><p>Check submitted NID details and approve or reject verification requests.</p></div>
         </Link>
         <Link className="admin-action-card" to="/admin/posts">
-          <span aria-hidden="true">▤</span>
+          <span aria-hidden="true"><FileText /></span>
           <div><strong>Manage property posts</strong><p>Review published listings and remove posts that violate platform rules.</p></div>
         </Link>
         <Link className="admin-action-card" to="/admin/users">
-          <span aria-hidden="true">♙</span>
+          <span aria-hidden="true"><Users /></span>
           <div><strong>Manage accounts</strong><p>Search members and suspend or reactivate user accounts.</p></div>
         </Link>
         <Link className="admin-action-card" to="/admin/reports">
-          <span aria-hidden="true">⚑</span>
+          <span aria-hidden="true"><Flag /></span>
           <div><strong>Review reports</strong><p>Follow up on reports submitted by tenants and owners.</p></div>
         </Link>
       </section>

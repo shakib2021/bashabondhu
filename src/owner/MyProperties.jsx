@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Home, Plus } from 'lucide-react';
 import { deleteProperty, getMyProperties } from '../utils/propertyApi';
 
 function MyProperties() {
@@ -58,7 +59,7 @@ function MyProperties() {
           <p>Keep track of the homes you’re preparing to share.</p>
         </div>
         <Link className="owner-button owner-button-primary" to="/owner/properties/new">
-          <span aria-hidden="true">＋</span> Add a property
+          <Plus aria-hidden="true" /> Add a property
         </Link>
       </section>
 
@@ -83,7 +84,7 @@ function MyProperties() {
           <div className="owner-empty-state owner-empty-state-compact">
             <span className="owner-empty-illustration" aria-hidden="true">
               <span className="owner-empty-sun" />
-              <span className="owner-empty-home">⌂</span>
+              <span className="owner-empty-home"><Home aria-hidden="true" /></span>
               <span className="owner-empty-ground" />
             </span>
             <h3>No properties yet</h3>

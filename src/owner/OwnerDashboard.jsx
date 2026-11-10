@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
+import { ArrowRight, Check, Clock3, Home, Plus, Sparkles } from 'lucide-react';
 import WatchlistPanel from '../components/common/WatchlistPanel';
 import { getMyProperties } from '../utils/propertyApi';
 
@@ -46,23 +47,23 @@ function OwnerDashboard() {
       <section className="owner-welcome">
         <div>
           <span className="owner-eyebrow">YOUR OWNER WORKSPACE</span>
-          <h1>Welcome home, {firstName} <span aria-hidden="true">✦</span></h1>
+          <h1>Welcome home, {firstName} <Sparkles aria-hidden="true" /></h1>
           <p>Keep your property details and rental plans all in one place.</p>
         </div>
         <Link className="owner-button owner-button-primary" to="/owner/properties/new">
-          <span aria-hidden="true">＋</span> Add a property
+          <Plus aria-hidden="true" /> Add a property
         </Link>
       </section>
 
       <section className="owner-stat-grid" aria-label="Property overview">
         <article className="owner-stat-card">
-          <span className="owner-stat-icon owner-stat-icon-green" aria-hidden="true">⌂</span>
+          <span className="owner-stat-icon owner-stat-icon-green" aria-hidden="true"><Home /></span>
           <span className="owner-stat-label">My properties</span>
           <strong>{statValue(properties.length)}</strong>
           <span className="owner-stat-note">Across all listing statuses</span>
         </article>
         <article className="owner-stat-card">
-          <span className="owner-stat-icon owner-stat-icon-blue" aria-hidden="true">◷</span>
+          <span className="owner-stat-icon owner-stat-icon-blue" aria-hidden="true"><Clock3 /></span>
           <span className="owner-stat-label">Active listings</span>
           <strong>{statValue(activeCount)}</strong>
           <span className="owner-stat-note">
@@ -72,7 +73,7 @@ function OwnerDashboard() {
           </span>
         </article>
         <article className="owner-stat-card">
-          <span className="owner-stat-icon owner-stat-icon-amber" aria-hidden="true">✓</span>
+          <span className="owner-stat-icon owner-stat-icon-amber" aria-hidden="true"><Check /></span>
           <span className="owner-stat-label">Rented</span>
           <strong>{statValue(rentedCount)}</strong>
           <span className="owner-stat-note">Marked as rented</span>
@@ -85,7 +86,7 @@ function OwnerDashboard() {
             <span className="owner-eyebrow">PORTFOLIO</span>
             <h2>Your properties <span className="owner-count">{loadStatus === 'ready' ? properties.length : '—'}</span></h2>
           </div>
-          <Link className="owner-text-link" to="/owner/properties">View all <span aria-hidden="true">→</span></Link>
+          <Link className="owner-text-link" to="/owner/properties">View all <ArrowRight aria-hidden="true" /></Link>
         </div>
         {loadStatus === 'loading' && <p className="owner-dashboard-state" role="status">Loading your listings…</p>}
         {loadStatus === 'error' && (
@@ -100,7 +101,7 @@ function OwnerDashboard() {
           <div className="owner-empty-state">
             <span className="owner-empty-illustration" aria-hidden="true">
               <span className="owner-empty-sun" />
-              <span className="owner-empty-home">⌂</span>
+              <span className="owner-empty-home"><Home aria-hidden="true" /></span>
               <span className="owner-empty-ground" />
             </span>
             <h3>Your next great listing starts here</h3>
@@ -127,12 +128,12 @@ function OwnerDashboard() {
       </section>
 
       <section className="owner-tip">
-        <span className="owner-tip-icon" aria-hidden="true">✦</span>
+        <span className="owner-tip-icon" aria-hidden="true"><Sparkles /></span>
         <div>
           <strong>A little detail goes a long way</strong>
           <p>Clear photos, accurate details, and a fair monthly rent help renters picture themselves at home.</p>
         </div>
-        <Link to="/owner/properties/new" aria-label="Add a property">Get started <span aria-hidden="true">→</span></Link>
+        <Link to="/owner/properties/new" aria-label="Add a property">Get started <ArrowRight aria-hidden="true" /></Link>
       </section>
       <WatchlistPanel />
     </>

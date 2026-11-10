@@ -8,3 +8,7 @@ Set `REACT_APP_GOOGLE_CLIENT_ID`, the Firebase web app values from `.env.example
 The Express and MongoDB API is in [backend](./backend). Follow [backend/README.md](./backend/README.md) to configure MongoDB Atlas, Google OAuth, Firebase Admin credentials, and the API environment before starting it.
 
 Deployed site: https://bashabondhu.netlify.app/
+
+## Community marketplace
+
+Signed-in users of any account role can list room-related items for sale, browse and search available items, make price offers, and respond to offers. Listings do not require admin approval. Buyers and sellers arrange pickup and payment offline.

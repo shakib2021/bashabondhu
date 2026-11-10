@@ -42,6 +42,11 @@
   height: 23px;
 }
 
+.tenant-app .owner-brand-mark svg {
+  width: 20px;
+  height: 20px;
+}
+
 .owner-brand-accent {
   color: #5b8b6a;
 }
@@ -86,9 +91,24 @@
 
 .owner-nav-icon {
   width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: #6b8876;
-  font-size: 17px;
   text-align: center;
+}
+
+.owner-nav-icon svg {
+  width: 17px;
+  height: 17px;
+  stroke-width: 1.8;
+}
+
+.owner-help-icon svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2;
 }
 
 .owner-sidebar-bottom {
@@ -158,6 +178,11 @@
   font-weight: 650;
   text-align: left;
   cursor: pointer;
+}
+
+.owner-signout > svg {
+  width: 16px;
+  height: 16px;
 }
 
 .owner-signout:hover {
@@ -389,6 +414,17 @@
   padding: 20px;
 }
 
+.owner-profile-heading-actions,
+.owner-profile-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.owner-profile-form .owner-profile-fields {
+  padding-bottom: 12px;
+}
+
 .owner-profile-field {
   min-width: 0;
   padding: 14px;
@@ -397,12 +433,47 @@
   background: #fbfcfb;
 }
 
+.owner-profile-form .owner-profile-field {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+}
+
+.owner-profile-field-wide {
+  grid-column: 1 / -1;
+}
+
 .owner-profile-field span {
-  display: block;
-  margin-bottom: 7px;
   color: #7b8981;
   font-size: 10px;
   font-weight: 650;
+}
+
+.owner-profile-field input,
+.owner-profile-field textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #dfe7df;
+  border-radius: 6px;
+  background: #fff;
+  color: #334d40;
+  font: inherit;
+  font-size: 12px;
+}
+
+.owner-profile-field input:read-only {
+  background: #f5f7f5;
+}
+
+.owner-profile-field textarea {
+  resize: vertical;
+}
+
+.owner-profile-field small {
+  color: #849087;
+  font-size: 10px;
+  font-weight: 400;
 }
 
 .owner-profile-field strong {
@@ -410,6 +481,30 @@
   color: #334d40;
   font-size: 12px;
   overflow-wrap: anywhere;
+}
+
+.owner-profile-message {
+  margin: 0 20px 14px;
+  padding: 11px 13px;
+  border-radius: 6px;
+  background: #edf6ed;
+  color: #367651;
+  font-size: 12px;
+}
+
+.owner-profile-message.is-error {
+  background: #fff3f0;
+  color: #a54132;
+}
+
+.owner-profile-form-actions {
+  justify-content: flex-end;
+  padding: 0 20px 20px;
+}
+
+.owner-profile-form-actions .owner-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
 }
 
 .owner-profile-verification {
@@ -703,6 +798,12 @@
   font-size: 16px;
 }
 
+.owner-stat-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.8;
+}
+
 .owner-stat-icon-green {
   background: #edf6ed;
   color: #43815b;
@@ -813,6 +914,12 @@
   line-height: 1;
 }
 
+.owner-empty-home svg {
+  width: 42px;
+  height: 42px;
+  stroke-width: 1.5;
+}
+
 .owner-empty-ground {
   width: 76px;
   height: 15px;
@@ -865,6 +972,14 @@
   font-size: 14px;
 }
 
+.owner-tip-icon svg,
+.owner-aside-icon svg,
+.owner-aside-note > svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.8;
+}
+
 .owner-tip > div {
   flex: 1;
 }
@@ -886,6 +1001,9 @@
 }
 
 .owner-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: #688073;
   font-size: 10px;
   font-weight: 700;
@@ -894,6 +1012,13 @@
 
 .owner-back-link:hover {
   color: #287653;
+}
+
+.owner-back-link svg,
+.owner-button svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.9;
 }
 
 .owner-listings-panel .owner-empty-state {
@@ -1469,10 +1594,6 @@
     padding: 0;
   }
 
-  .owner-nav-icon {
-    font-size: 18px;
-  }
-
   .owner-help-card {
     display: none;
   }
@@ -1484,8 +1605,9 @@
     font-size: 0;
   }
 
-  .owner-signout span {
-    font-size: 15px;
+  .owner-signout > svg {
+    width: 17px;
+    height: 17px;
   }
 
   .owner-topbar {

@@ -1,20 +1,38 @@
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import useEmblaCarousel from 'embla-carousel-react';
+import { ArrowDownRight, ArrowLeft, ArrowRight, Check, House, MapPin } from 'lucide-react';
 import Navbar from '../../components/common/Navbar';
 import './Home.css';
 import Footer from '../../components/common/Footer';
 import '../../components/common/footer.css';
 import { getPublicProperties } from '../../utils/propertyApi';
+import { getStoredUser } from '../../utils/authStorage';
+import ReportListingButton from '../../components/common/ReportListingButton';
+import WatchlistButton from '../../components/common/WatchlistButton';
+import { getMyWatchlist } from '../../utils/watchlistApi';
 
 const POPULAR_RATING = 4.5;
 const NEW_LISTING_WINDOW = 2 * 24 * 60 * 60 * 1000;
-const artworkClasses = ['home-art-one', 'home-art-two', 'home-art-three'];
+const artworkClasses = ['home-art-one', 'home-art-two', 'home-art-three', 'home-art-four'];
 const genderSearchTerms = {
   men: ['men', 'male'],
   women: ['women', 'female'],
   any: ['any', 'either'],
 };
+
+function HomeLoader({ compact = false }) {
+  return (
+    <div className={`home-loader${compact ? ' home-loader-compact' : ''}`} role="status">
+      <span className="home-loader-mark" aria-hidden="true"><House /></span>
+      <span className="home-loader-copy">
+        <strong>Finding your next place</strong>
+        <span>Gathering fresh listings for you</span>
+      </span>
+      <span className="home-loader-dots" aria-hidden="true"><i /><i /><i /></span>
+    </div>
+  );
+}
 
 function filterProperties(properties, query, genderFilter, accommodationFilter) {
   const searchTerms = query.toLowerCase().split(/\s+/).filter(Boolean);
@@ -52,41 +70,61 @@ function filterProperties(properties, query, genderFilter, accommodationFilter) 
   });
 }
 
-function ListingArtwork({ property, index }) {
+function ListingArtwork({
+  property,
+  propertyId,
+  index,
+  watched,
+  onWatchlistChange,
+  onSignInRequired,
+  disableWatchlist,
+}) {
   const postedAt = new Date(property.createdAt).getTime();
   const age = Date.now() - postedAt;
   const badges = [];
 
   if (Number(property.rating) >= POPULAR_RATING) badges.push('Popular');
-  if (property.isVerified === true) badges.push('Verified');
   if (Number.isFinite(postedAt) && age >= 0 && age <= NEW_LISTING_WINDOW) badges.push('New listing');
 
   return (
     <div className={`home-card-art ${artworkClasses[index % artworkClasses.length]}`}>
       {property.images?.[0] ? (
         <img className="listing-photo" src={property.images[0]} alt={`${property.title} accommodation`} loading="lazy" />
-      ) : (
-        <>
-          <div className="card-building">
-            <span className="building-roof" />
-            <span className="building-face"><i /><i /><i /><i /></span>
-          </div>
-          <span className="card-plant" />
-        </>
+      ) : null}
+      {property.isVerified === true && (
+        <span className="listing-verified-corner"><Check aria-hidden="true" /> Verified</span>
       )}
       {badges.length > 0 && (
         <div className="listing-tags" aria-label="Listing highlights">
           {badges.map((badge) => <span className={`listing-tag listing-tag-${badge.toLowerCase().replace(' ', '-')}`} key={badge}>{badge}</span>)}
         </div>
       )}
-      <span className="save-home" aria-hidden="true">♡</span>
+      <ReportListingButton
+        propertyId={propertyId}
+        propertyTitle={property.title}
+        onSignInRequired={onSignInRequired}
+      />
+      <WatchlistButton
+        propertyId={propertyId}
+        watched={watched}
+        onChange={onWatchlistChange}
+        onSignInRequired={onSignInRequired}
+        disabled={disableWatchlist}
+      />
     </div>
   );
 }
 
 function Home() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [properties, setProperties] = useState([]);
+  const [userSession, setUserSession] = useState(getStoredUser);
+  const [watchedPropertyIds, setWatchedPropertyIds] = useState(() => new Set());
+  const [watchlistStatus, setWatchlistStatus] = useState('idle');
+  const [watchlistError, setWatchlistError] = useState('');
+  const [watchlistReloadKey, setWatchlistReloadKey] = useState(0);
   const [activeSlide, setActiveSlide] = useState(0);
   const [loadStatus, setLoadStatus] = useState('loading');
   const [errorMessage, setErrorMessage] = useState('');
@@ -110,6 +148,18 @@ function Home() {
   );
   const displayedProperties = hasActiveFilters ? filteredProperties : filteredProperties.slice(0, 6);
   const featuredProperties = properties.slice(0, 5);
+  const isWatchlistLoading = watchlistStatus === 'loading';
+  const returnTo = `${location.pathname}${location.search}${location.hash}`;
+
+  useEffect(() => {
+    const syncUser = () => setUserSession(getStoredUser());
+    window.addEventListener('bashabondhu:auth-change', syncUser);
+    window.addEventListener('storage', syncUser);
+    return () => {
+      window.removeEventListener('bashabondhu:auth-change', syncUser);
+      window.removeEventListener('storage', syncUser);
+    };
+  }, []);
 
   const clearFilters = () => {
     setGenderFilter('all');
@@ -141,6 +191,39 @@ function Home() {
   }, [reloadKey]);
 
   useEffect(() => {
+    let isMounted = true;
+
+    if (!userSession?.token) {
+      setWatchedPropertyIds(new Set());
+      setWatchlistError('');
+      setWatchlistStatus('idle');
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    setWatchlistStatus('loading');
+    setWatchlistError('');
+    getMyWatchlist()
+      .then((listings) => {
+        if (isMounted) {
+          setWatchedPropertyIds(new Set(listings.map((property) => String(property._id || property.id))));
+          setWatchlistStatus('ready');
+        }
+      })
+      .catch((error) => {
+        if (isMounted) {
+          setWatchlistError(error.message || 'Could not load your saved homes.');
+          setWatchlistStatus('error');
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [userSession?.id, userSession?.token, watchlistReloadKey]);
+
+  useEffect(() => {
     if (!emblaApi) return undefined;
 
     const updateActiveSlide = () => setActiveSlide(emblaApi.selectedScrollSnap());
@@ -159,6 +242,23 @@ function Home() {
     emblaApi?.scrollTo(0, true);
   }, [emblaApi, properties]);
 
+  const handleSignInRequired = () => {
+    navigate('/login', { state: { from: returnTo } });
+  };
+
+  const handleWatchlistChange = (propertyId, watched) => {
+    setWatchedPropertyIds((currentIds) => {
+      const updatedIds = new Set(currentIds);
+      if (watched) {
+        updatedIds.add(String(propertyId));
+      } else {
+        updatedIds.delete(String(propertyId));
+      }
+      return updatedIds;
+    });
+    setWatchlistError('');
+  };
+
   return (
     <>
       <Navbar />
@@ -171,7 +271,7 @@ function Home() {
             aria-label="Featured homes"
           >
             {loadStatus === 'loading' && (
-              <p className="featured-status" role="status">Finding available homes…</p>
+              <HomeLoader />
             )}
             {loadStatus === 'error' && (
               <p className="featured-status" role="status">Featured homes are temporarily unavailable.</p>
@@ -216,7 +316,7 @@ function Home() {
                               <h1>{property.title}</h1>
                               {(property.location || property.city || property.address) && (
                                 <span className="featured-location">
-                                  <span aria-hidden="true">⌖</span>
+                                  <MapPin aria-hidden="true" />
                                   {[property.location, property.city].filter(Boolean).join(', ') || property.address}
                                 </span>
                               )}
@@ -250,7 +350,7 @@ function Home() {
                                 ))}
                               </span>
                             </span>
-                            <span className="featured-open-icon" aria-hidden="true">↗</span>
+                            <span className="featured-open-icon" aria-hidden="true"><ArrowDownRight /></span>
                           </Link>
                         </article>
                       );
@@ -264,7 +364,7 @@ function Home() {
                     aria-label="Previous featured home"
                     disabled={featuredProperties.length < 2}
                   >
-                    <span aria-hidden="true">←</span>
+                    <ArrowLeft aria-hidden="true" />
                   </button>
                   <div className="featured-indicators" aria-label="Choose featured home">
                     {featuredProperties.map((property, index) => (
@@ -285,7 +385,7 @@ function Home() {
                     aria-label="Next featured home"
                     disabled={featuredProperties.length < 2}
                   >
-                    <span aria-hidden="true">→</span>
+                    <ArrowRight aria-hidden="true" />
                   </button>
                 </div>
               </>
@@ -296,17 +396,10 @@ function Home() {
           </div>
         </section>
 
-        <section className="trust-strip" aria-label="BashaBondhu benefits">
-          <div><span className="trust-icon">✓</span><span>Homes checked with care</span></div>
-          <div><span className="trust-icon">♡</span><span>People-first, always</span></div>
-          <div><span className="trust-icon">⌖</span><span>Made for your neighborhood</span></div>
-        </section>
-
         <section className="homes-section section-wrap" id="homes">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">A place to begin</p>
-              <h2>Homes worth <span>coming home to.</span></h2>
+              <h2>Homes for rent</h2>
               <p className="section-description">
                 {searchTerm && (genderFilter !== 'all' || accommodationFilter !== 'all')
                   ? `${filteredProperties.length} homes match your search and filters.`
@@ -314,10 +407,9 @@ function Home() {
                   ? `${filteredProperties.length} homes found for “${searchTerm}”.`
                   : hasActiveFilters
                     ? `${filteredProperties.length} homes match your filters.`
-                    : 'A few lovely places to get your search started.'}
+                    : 'Fresh listings from across Dhaka.'}
               </p>
             </div>
-            <a href="#how-it-works" className="browse-link">See how to find yours <span aria-hidden="true">→</span></a>
           </div>
           <div className="listing-filters" aria-label="Filter listings">
             <label className="listing-filter">
@@ -354,7 +446,7 @@ function Home() {
               </button>
             )}
           </div>
-          {loadStatus === 'loading' && <p className="listing-load-state" role="status">Finding available homes…</p>}
+          {loadStatus === 'loading' && <HomeLoader compact />}
           {loadStatus === 'error' && (
             <div className="listing-load-state" role="alert">
               <span>{errorMessage}</span>
@@ -374,63 +466,60 @@ function Home() {
           )}
           {loadStatus === 'ready' && displayedProperties.length > 0 && (
             <div className="home-grid">
-              {displayedProperties.map((property, index) => (
-                <Link className="home-card-link" to={`/properties/${property._id}`} key={property._id} aria-label={`View ${property.title}`}>
-                  <article className="home-card">
-                    <ListingArtwork property={property} index={index} />
-                    <div className="home-card-copy">
-                      <p className="home-area"><span aria-hidden="true">⌖</span> {property.location}, {property.city}</p>
-                      <h3>{property.title}</h3>
-                      <p className="home-details">
-                        {property.bedrooms} beds · {property.bathrooms} baths · {property.number_of_rooms} rooms
-                      </p>
-                      <div className="home-price">৳ {Number(property.monthly_rent).toLocaleString()}<span> / month</span></div>
-                    </div>
+              {displayedProperties.map((property, index) => {
+                const propertyId = property._id || property.id;
+                return (
+                  <article className="home-card" key={propertyId}>
+                    <ListingArtwork
+                      property={property}
+                      propertyId={propertyId}
+                      index={index}
+                      watched={watchedPropertyIds.has(String(propertyId))}
+                      onWatchlistChange={(watched) => handleWatchlistChange(propertyId, watched)}
+                      onSignInRequired={handleSignInRequired}
+                      disableWatchlist={isWatchlistLoading}
+                    />
+                    <Link className="home-card-link" to={`/properties/${propertyId}`} aria-label={`View ${property.title}`}>
+                      <div className="home-card-copy">
+                        <div className="home-card-tags">
+                          {property.accommodation_type?.toLowerCase().includes('mess') ? (
+                            <span className="home-type-tag">
+                              Mess
+                              {property.gender && property.gender !== 'any' && ` · ${property.gender[0].toUpperCase()}${property.gender.slice(1)}`}
+                            </span>
+                          ) : property.accommodation_type && (
+                            <span className="home-type-tag">{property.accommodation_type}</span>
+                          )}
+                          {property.status?.toLowerCase() === 'available' && (
+                            <span className="home-status home-status-available home-status-sr-only">{property.status}</span>
+                          )}
+                          {property.status && property.status.toLowerCase() !== 'available' && (
+                            <span className={`home-status home-status-${property.status.toLowerCase()}`}>{property.status}</span>
+                          )}
+                        </div>
+                        <h3>{property.title}</h3>
+                        <p className="home-area"><MapPin aria-hidden="true" /> {property.location}, {property.city}</p>
+                        <p className="home-details">
+                          {property.bedrooms} beds · {property.bathrooms} baths · {property.number_of_rooms} rooms
+                        </p>
+                        <div className="home-price">৳ {Number(property.monthly_rent).toLocaleString()}<span> / month</span></div>
+                      </div>
+                    </Link>
                   </article>
-                </Link>
-              ))}
+                );
+              })}
             </div>
+          )}
+          {watchlistStatus === 'error' && (
+            <p className="watchlist-load-error" role="alert">
+              {watchlistError}{' '}
+              <button type="button" onClick={() => setWatchlistReloadKey((key) => key + 1)}>
+                Retry
+              </button>
+            </p>
           )}
         </section>
 
-        <section className="how-section" id="how-it-works">
-          <div className="section-wrap how-inner">
-            <div className="how-intro">
-              <p className="eyebrow">A little less searching, a lot more settling in</p>
-              <h2>Your next chapter,<br /><span>in three easy steps.</span></h2>
-              <p>We bring the right homes and helpful people together, so you can focus on what matters: feeling at home.</p>
-            </div>
-            <div className="steps">
-              <article className="step">
-                <span className="step-number">01</span>
-                <div className="step-icon" aria-hidden="true">⌕</div>
-                <h3>Tell us what feels right</h3>
-                <p>Share your neighborhood, budget, and the little things that make a place yours.</p>
-              </article>
-              <article className="step">
-                <span className="step-number">02</span>
-                <div className="step-icon" aria-hidden="true">⌂</div>
-                <h3>Meet your kind of home</h3>
-                <p>Explore thoughtful listings and connect with people who are ready to help.</p>
-              </article>
-              <article className="step">
-                <span className="step-number">03</span>
-                <div className="step-icon" aria-hidden="true">♡</div>
-                <h3>Make yourself at home</h3>
-                <p>Find your place, settle in, and start making everyday memories.</p>
-              </article>
-            </div>
-          </div>
-        </section>
-
-        <section className="about-section section-wrap" id="about">
-          <div className="about-mark" aria-hidden="true">⌂</div>
-          <div>
-            <p className="eyebrow">A good neighbor makes all the difference</p>
-            <h2>Home is more than<br />four <span>walls.</span></h2>
-          </div>
-          <p className="about-copy">BashaBondhu means a friend for your home. We’re here to make finding a place feel more personal, more trustworthy, and a little more like finding a friend.</p>
-        </section>
       </main>
 
       <Footer />
