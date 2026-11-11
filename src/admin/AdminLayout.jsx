@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Flag, Home, LayoutDashboard, LogOut, ShieldCheck, Users } from 'lucide-react';
+import { FileText, Flag, Home, LayoutDashboard, LogOut, ShieldCheck, UserRound, Users } from 'lucide-react';
 import { clearUserProfile, getStoredUser } from '../utils/authStorage';
 import { getUserInfo } from '../utils/userApi';
 import '../owner/OwnerDashboard.css';
@@ -37,6 +37,9 @@ function AdminLayout() {
             fullName: userProfile.fullName || storedUser.name || storedUser.email,
             email: userProfile.email,
             profileImage: userProfile.profileImage || storedUser.picture || '',
+            phone: userProfile.phone,
+            address: userProfile.address,
+            occupation: userProfile.occupation,
           });
           setStatus('ready');
         }
@@ -57,6 +60,10 @@ function AdminLayout() {
   const handleSignOut = () => {
     clearUserProfile();
     navigate('/login');
+  };
+
+  const handleProfileUpdate = (updatedProfile) => {
+    setProfile((currentProfile) => ({ ...currentProfile, ...updatedProfile }));
   };
 
   if (status === 'loading') {
@@ -129,6 +136,10 @@ function AdminLayout() {
             <span className="owner-nav-icon" aria-hidden="true"><Users /></span>
             Users
           </NavLink>
+          <NavLink to="/admin/profile" className={({ isActive }) => `owner-side-link${isActive ? ' is-active' : ''}`}>
+            <span className="owner-nav-icon" aria-hidden="true"><UserRound /></span>
+            My profile
+          </NavLink>
         </nav>
         <div className="owner-sidebar-bottom">
           <div className="admin-sidebar-note">
@@ -145,7 +156,7 @@ function AdminLayout() {
         <header className="owner-topbar">
           <div className="owner-breadcrumb"><span>Workspace</span><span aria-hidden="true">/</span><strong>Admin</strong></div>
           <div className="owner-topbar-actions">
-            <div className="owner-account">
+            <Link className="owner-account owner-profile-link" to="/admin/profile" aria-label="My profile">
               <span className="owner-account-copy">
                 <strong>{profile.fullName}</strong>
                 <span>Administrator</span>
@@ -155,11 +166,11 @@ function AdminLayout() {
               ) : (
                 <span className="owner-avatar owner-avatar-fallback" aria-hidden="true">{initials || 'A'}</span>
               )}
-            </div>
+            </Link>
           </div>
         </header>
         <main className="owner-content admin-content">
-          <Outlet context={{ profile }} />
+          <Outlet context={{ profile, onProfileUpdate: handleProfileUpdate }} />
         </main>
       </div>
     </div>

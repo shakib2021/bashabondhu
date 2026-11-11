@@ -403,6 +403,299 @@
   font-weight: 750;
 }
 
+.profile-details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 20px;
+}
+
+.profile-detail-card {
+  min-width: 0;
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 15px 16px;
+  border: 1px solid #e8eee8;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #fff 0%, #fbfdfb 100%);
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.profile-detail-card:hover {
+  transform: translateY(-2px);
+  border-color: #c9ddcd;
+  box-shadow: 0 8px 18px rgb(34 67 48 / 6%);
+}
+
+.profile-detail-icon {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #e1eee3;
+  border-radius: 11px;
+  background: #f0f7f1;
+  color: #438161;
+}
+
+.profile-detail-icon svg {
+  width: 17px;
+  height: 17px;
+  stroke-width: 1.8;
+}
+
+.profile-detail-copy {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.profile-detail-copy > span {
+  color: #87958b;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: .3px;
+}
+
+.profile-detail-copy > strong {
+  overflow-wrap: anywhere;
+  color: #304c3d;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.profile-detail-copy > strong.is-missing {
+  color: #a0aaa2;
+  font-size: 12px;
+  font-weight: 500;
+  font-style: italic;
+}
+
+.profile-details-grid.owner-profile-fields {
+  padding: 20px;
+}
+
+.profile-details-grid.tenant-profile-fields .profile-detail-card:last-child {
+  grid-column: 1 / -1;
+}
+
+.account-profile-hero {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 20px;
+  border: 1px solid #e3ebe5;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 14px 36px rgb(34 67 48 / 6%);
+}
+
+.account-profile-cover {
+  position: relative;
+  height: 92px;
+  overflow: hidden;
+  background: linear-gradient(112deg, #173f32 0%, #2d7653 58%, #90b792 100%);
+}
+
+.account-profile-cover::before,
+.account-profile-cover::after,
+.account-profile-cover span {
+  position: absolute;
+  display: block;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 50%;
+}
+
+.account-profile-cover::before {
+  top: -135px;
+  right: 12%;
+  width: 300px;
+  height: 300px;
+}
+
+.account-profile-cover::after {
+  top: -92px;
+  right: 19%;
+  width: 210px;
+  height: 210px;
+}
+
+.account-profile-cover span:first-child {
+  top: -125px;
+  right: 27%;
+  width: 260px;
+  height: 260px;
+  background: rgb(255 255 255 / 4%);
+}
+
+.account-profile-cover span:nth-child(2) {
+  top: 28px;
+  right: 8%;
+  width: 9px;
+  height: 9px;
+  border: 0;
+  background: #d3e6ba;
+}
+
+.account-profile-cover span:nth-child(3) {
+  top: 58px;
+  right: 31%;
+  width: 6px;
+  height: 6px;
+  border: 0;
+  background: rgb(255 255 255 / 75%);
+}
+
+.account-profile-hero-content {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 26px 23px;
+}
+
+.account-profile-avatar-wrap {
+  position: relative;
+  flex: 0 0 auto;
+  margin-top: -36px;
+  padding: 4px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.account-profile-avatar {
+  width: 76px;
+  height: 76px;
+  display: block;
+  border: 2px solid #edf4ed;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.account-profile-avatar-fallback {
+  display: grid;
+  place-items: center;
+  background: #e8f2e8;
+  color: #287650;
+  font-size: 23px;
+  font-weight: 750;
+}
+
+.account-profile-avatar-dot {
+  position: absolute;
+  right: 5px;
+  bottom: 7px;
+  width: 13px;
+  height: 13px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: #56a477;
+}
+
+.account-profile-copy {
+  min-width: 0;
+  flex: 1;
+  padding-top: 13px;
+}
+
+.account-profile-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+.account-profile-role,
+.account-profile-status {
+  display: inline-flex;
+  min-height: 23px;
+  align-items: center;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: #edf5ee;
+  color: #347653;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .45px;
+  text-transform: uppercase;
+}
+
+.account-profile-status {
+  background: #e8f6ee;
+  color: #287a50;
+  text-transform: none;
+}
+
+.account-profile-copy h2 {
+  overflow: hidden;
+  margin: 8px 0 3px;
+  color: #294539;
+  font-size: 20px;
+  font-weight: 750;
+  letter-spacing: -.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-profile-copy > p {
+  overflow-wrap: anywhere;
+  margin: 0;
+  color: #7a8980;
+  font-size: 12px;
+}
+
+.account-profile-completion {
+  width: 155px;
+  flex: 0 0 155px;
+  padding: 13px 14px;
+  border: 1px solid #e8eee8;
+  border-radius: 11px;
+  background: #fbfcfb;
+}
+
+.account-profile-completion > span,
+.account-profile-completion > small {
+  display: block;
+  color: #829087;
+  font-size: 9px;
+}
+
+.account-profile-completion > strong {
+  display: block;
+  margin-top: 4px;
+  color: #2d6547;
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+.account-profile-completion > strong small {
+  color: #8b988f;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.account-profile-progress {
+  height: 5px;
+  overflow: hidden;
+  margin: 8px 0 6px;
+  border-radius: 8px;
+  background: #e7eee8;
+}
+
+.account-profile-progress span {
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #287650, #8cb78c);
+}
+
+.account-profile-completion > small {
+  font-size: 8px;
+}
+
 .owner-profile-panel {
   overflow: hidden;
 }
@@ -1653,6 +1946,45 @@
   .owner-profile-fields {
     grid-template-columns: 1fr;
     padding: 14px;
+  }
+
+  .profile-details-grid {
+    grid-template-columns: 1fr;
+    padding: 14px;
+  }
+
+  .profile-details-grid.tenant-profile-fields .profile-detail-card:last-child {
+    grid-column: auto;
+  }
+
+  .account-profile-hero-content {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 10px 13px;
+    padding: 0 16px 16px;
+  }
+
+  .account-profile-avatar-wrap {
+    margin-top: -29px;
+  }
+
+  .account-profile-avatar {
+    width: 62px;
+    height: 62px;
+  }
+
+  .account-profile-copy {
+    padding-top: 8px;
+  }
+
+  .account-profile-copy h2 {
+    font-size: 17px;
+  }
+
+  .account-profile-completion {
+    width: 100%;
+    flex-basis: 100%;
+    margin-top: 3px;
   }
 
   .owner-content {

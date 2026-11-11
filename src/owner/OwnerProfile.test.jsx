@@ -65,6 +65,8 @@ test('lets an owner edit profile details and updates the dashboard profile', asy
 
   renderOwnerProfile(onProfileUpdate);
   await screen.findByRole('heading', { name: 'My profile' });
+  expect(screen.getByRole('region', { name: 'Owner profile summary' })).toHaveTextContent('Mina Owner');
+  expect(screen.getByText('Owner account')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
 
   fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Mina Rahman' } });
@@ -83,7 +85,7 @@ test('lets an owner edit profile details and updates the dashboard profile', asy
     profileImage: 'https://example.com/mina.jpg',
   });
   expect(onProfileUpdate).toHaveBeenCalledWith(updatedProfile);
-  expect(screen.getByText('Mina Rahman')).toBeInTheDocument();
+  expect(screen.getByRole('region', { name: 'Owner profile summary' })).toHaveTextContent('Mina Rahman');
   expect(screen.queryByRole('button', { name: 'Save changes' })).not.toBeInTheDocument();
 });
 

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import ProfileIdentityCard from '../components/common/ProfileIdentityCard';
+import ProfileDetailsGrid from '../components/common/ProfileDetailsGrid';
 import { getOwnerVerification, submitOwnerVerification } from '../utils/ownerVerificationApi';
 import { updateUserInfo } from '../utils/userApi';
 
@@ -153,6 +155,11 @@ function OwnerProfile() {
           <p>Your personal details connected to BashaBondhu.</p>
         </div>
       </section>
+      <ProfileIdentityCard
+        profile={profile}
+        roleLabel="Owner"
+        statusLabel={isVerified ? 'Verified owner' : ''}
+      />
       <section className="owner-panel owner-profile-panel">
         <div className="owner-panel-heading">
           <div>
@@ -252,14 +259,7 @@ function OwnerProfile() {
           </form>
         ) : (
           <>
-            <div className="owner-profile-fields">
-              {fields.map(([label, value]) => (
-                <div className="owner-profile-field" key={label}>
-                  <span>{label}</span>
-                  <strong>{value}</strong>
-                </div>
-              ))}
-            </div>
+            <ProfileDetailsGrid fields={fields} className="owner-profile-fields" />
             {profileMessage && <p className="owner-profile-message is-success" role="status">{profileMessage}</p>}
           </>
         )}

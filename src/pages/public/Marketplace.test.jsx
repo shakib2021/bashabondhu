@@ -122,3 +122,37 @@ test('shows actual marketplace posts in the carousel with controls', async () =>
   expect(within(carousel).getByRole('button', { name: 'Next marketplace listing' })).toBeInTheDocument();
   expect(within(carousel).getByRole('button', { name: 'Show marketplace listing 2' })).toBeInTheDocument();
 });
+
+test('filters listings by area and can return to all areas', async () => {
+  render(
+    <MemoryRouter>
+      <Marketplace />
+    </MemoryRouter>,
+  );
+
+  await waitFor(() => expect(document.querySelectorAll('.marketplace-card')).toHaveLength(3));
+  const filters = screen.getByRole('group', { name: 'Search by area' });
+
+  fireEvent.click(within(filters).getByRole('button', { name: 'Dhanmondi' }));
+
+  expect(document.querySelectorAll('.marketplace-card')).toHaveLength(1);
+  expect(document.querySelector('.marketplace-grid')).toHaveTextContent('Desk lamp');
+  expect(document.querySelector('.marketplace-grid')).not.toHaveTextContent('Study chair');
+  expect(within(filters).getByRole('button', { name: 'Dhanmondi' })).toHaveAttribute('aria-pressed', 'true');
+
+  fireEvent.click(within(filters).getByRole('button', { name: 'All areas' }));
+  expect(document.querySelectorAll('.marketplace-card')).toHaveLength(3);
+});
+
+test('shows an area-specific empty state when an area has no listings', async () => {
+  render(
+    <MemoryRouter>
+      <Marketplace />
+    </MemoryRouter>,
+  );
+
+  await waitFor(() => expect(document.querySelectorAll('.marketplace-card')).toHaveLength(3));
+  fireEvent.click(screen.getByRole('button', { name: 'Mohammadpur' }));
+
+  expect(await screen.findByText(/There are no items in Mohammadpur yet/)).toBeInTheDocument();
+});

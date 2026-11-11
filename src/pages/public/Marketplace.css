@@ -305,6 +305,47 @@
   font-weight: 700;
 }
 
+.marketplace-area-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+  margin-top: 22px;
+}
+
+.marketplace-area-filters > span {
+  margin-right: 3px;
+  color: #66746b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.marketplace-area-button {
+  min-height: 34px;
+  padding: 0 13px;
+  border: 1px solid #dfe8df;
+  border-radius: 999px;
+  background: #fff;
+  color: #476651;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.marketplace-area-button:hover,
+.marketplace-area-button.is-active {
+  border-color: #1e7658;
+  background: #1e7658;
+  color: #fff;
+}
+
+.marketplace-area-button:focus-visible {
+  outline: 2px solid #1e7658;
+  outline-offset: 3px;
+}
+
 .marketplace-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

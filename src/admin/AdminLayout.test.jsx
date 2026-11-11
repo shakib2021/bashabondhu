@@ -20,6 +20,7 @@ function renderAdminRoutes() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<h1>Admin overview</h1>} />
           <Route path="users" element={<h1>User management</h1>} />
+          <Route path="profile" element={<h1>Admin profile</h1>} />
         </Route>
         <Route path="/owner" element={<p>Owner workspace</p>} />
         <Route path="/tenant/dashboard" element={<p>Tenant workspace</p>} />
@@ -50,6 +51,8 @@ test('shows admin navigation and the overview to an administrator', async () => 
   expect(await screen.findByRole('heading', { name: 'Admin overview' })).toBeInTheDocument();
   expect(screen.getByRole('navigation', { name: 'Admin navigation' })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /pending verification/i })).toHaveAttribute('href', '/admin/verifications');
+  expect(screen.getAllByRole('link', { name: 'My profile' })).toHaveLength(2);
+  expect(screen.getAllByRole('link', { name: 'My profile' })[0]).toHaveAttribute('href', '/admin/profile');
   expect(screen.getByText('Site Admin')).toBeInTheDocument();
 });
 

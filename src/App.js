@@ -21,6 +21,7 @@ import AdminOverview from './admin/AdminOverview';
 import AdminPosts from './admin/AdminPosts';
 import AdminReports from './admin/AdminReports';
 import AdminUsers from './admin/AdminUsers';
+import AdminProfile from './admin/AdminProfile';
 
 function App() {
   return (
@@ -42,6 +43,7 @@ function App() {
             <Route path="posts" element={<AdminPosts />} />
             <Route path="reports" element={<AdminReports />} />
             <Route path="users" element={<AdminUsers />} />
+            <Route path="profile" element={<AdminProfile />} />
           </Route>
           <Route path="/owner" element={<OwnerLayout />}>
             <Route index element={<OwnerDashboard />} />

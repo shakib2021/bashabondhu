@@ -121,7 +121,7 @@ test('opens notifications and the owner profile from the top bar', async () => {
   expect(screen.getByText('You’re all caught up.')).toBeInTheDocument();
   fireEvent.click(within(document.querySelector('.owner-topbar')).getByRole('link', { name: 'My profile' }));
   expect(await screen.findByRole('heading', { name: 'My profile' })).toBeInTheDocument();
-  expect(screen.getByText('owner@example.com')).toBeInTheDocument();
+  expect(screen.getByRole('region', { name: 'Owner profile summary' })).toHaveTextContent('owner@example.com');
 });
 
 test('links owner notifications to the exact reply and marks them read', async () => {

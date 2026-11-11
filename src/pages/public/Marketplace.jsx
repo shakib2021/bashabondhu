@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import useEmblaCarousel from 'embla-carousel-react';
 import { ArrowLeft, ArrowRight, Pause, Play, Search, ShoppingBag } from 'lucide-react';
@@ -10,10 +10,12 @@ import './Marketplace.css';
 
 const formatPrice = (value) => `৳${Number(value).toLocaleString('en-BD')}`;
 const CAROUSEL_AUTOPLAY_INTERVAL = 2000;
+const MARKETPLACE_AREAS = ['Mohammadpur', 'Dhanmondi', 'Uttara', 'Mirpur', 'Gulshan', 'Banani'];
 
 function Marketplace() {
   const [search, setSearch] = useState('');
   const [activeSearch, setActiveSearch] = useState('');
+  const [selectedArea, setSelectedArea] = useState('');
   const [activeSlide, setActiveSlide] = useState(0);
   const [isCarouselPaused, setIsCarouselPaused] = useState(false);
   const [isCarouselHovered, setIsCarouselHovered] = useState(false);
@@ -21,6 +23,11 @@ function Marketplace() {
   const [status, setStatus] = useState('loading');
   const [errorMessage, setErrorMessage] = useState('');
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
+  const filteredItems = useMemo(() => (
+    selectedArea
+      ? items.filter((item) => item.location?.toLowerCase().includes(selectedArea.toLowerCase()))
+      : items
+  ), [items, selectedArea]);
 
   useEffect(() => {
     if (!emblaApi) return undefined;
@@ -42,12 +49,12 @@ function Marketplace() {
     emblaApi.reInit();
     emblaApi.scrollTo(0, true);
     setActiveSlide(0);
-  }, [emblaApi, items]);
+  }, [emblaApi, filteredItems]);
 
   useEffect(() => {
     if (
       !emblaApi
-      || items.length < 2
+      || filteredItems.length < 2
       || isCarouselPaused
       || isCarouselHovered
       || status !== 'ready'
@@ -58,7 +65,7 @@ function Marketplace() {
       CAROUSEL_AUTOPLAY_INTERVAL,
     );
     return () => window.clearInterval(intervalId);
-  }, [emblaApi, isCarouselHovered, isCarouselPaused, items.length, status]);
+  }, [emblaApi, filteredItems.length, isCarouselHovered, isCarouselPaused, status]);
 
   useEffect(() => {
     let isMounted = true;
@@ -90,7 +97,7 @@ function Marketplace() {
     <>
       <Navbar />
       <main className="marketplace-page">
-        {status === 'ready' && items.length > 0 && (
+        {status === 'ready' && filteredItems.length > 0 && (
           <div
             role="region"
             className="marketplace-hero"
@@ -102,7 +109,7 @@ function Marketplace() {
           >
             <div className="marketplace-hero-viewport" ref={emblaRef}>
               <div className="marketplace-hero-track">
-                {items.map((item, index) => {
+                {filteredItems.map((item, index) => {
                   const isActive = index === activeSlide;
 
                   return (
@@ -111,7 +118,7 @@ function Marketplace() {
                       key={item._id}
                       role="group"
                       aria-roledescription="slide"
-                      aria-label={`${index + 1} of ${items.length}`}
+                      aria-label={`${index + 1} of ${filteredItems.length}`}
                       aria-hidden={!isActive}
                     >
                       <Link
@@ -136,13 +143,13 @@ function Marketplace() {
                 })}
               </div>
             </div>
-            {items.length > 1 && (
+            {filteredItems.length > 1 && (
               <div className="marketplace-hero-controls" role="group" aria-label="Marketplace listing controls">
                 <button type="button" onClick={() => emblaApi?.scrollPrev()} aria-label="Previous marketplace listing">
                   <ArrowLeft aria-hidden="true" />
                 </button>
                 <div className="marketplace-hero-indicators" aria-label="Choose marketplace listing">
-                  {items.map((item, index) => (
+                  {filteredItems.map((item, index) => (
                     <button
                       type="button"
                       key={item._id}
@@ -154,7 +161,7 @@ function Marketplace() {
                   ))}
                 </div>
                 <span className="marketplace-hero-count">
-                  {String(activeSlide + 1).padStart(2, '0')} / {String(items.length).padStart(2, '0')}
+                  {String(activeSlide + 1).padStart(2, '0')} / {String(filteredItems.length).padStart(2, '0')}
                 </span>
                 <button type="button" onClick={() => emblaApi?.scrollNext()} aria-label="Next marketplace listing">
                   <ArrowRight aria-hidden="true" />
@@ -191,19 +198,46 @@ function Marketplace() {
             </form>
           </div>
 
+          <div className="marketplace-area-filters" role="group" aria-label="Search by area">
+            <span>Search by area</span>
+            <button
+              type="button"
+              className={`marketplace-area-button${selectedArea === '' ? ' is-active' : ''}`}
+              aria-pressed={selectedArea === ''}
+              onClick={() => setSelectedArea('')}
+            >
+              All areas
+            </button>
+            {MARKETPLACE_AREAS.map((area) => (
+              <button
+                type="button"
+                key={area}
+                className={`marketplace-area-button${selectedArea === area ? ' is-active' : ''}`}
+                aria-pressed={selectedArea === area}
+                onClick={() => setSelectedArea(area)}
+              >
+                {area}
+              </button>
+            ))}
+          </div>
+
           {status === 'loading' && <p className="marketplace-state">Loading items…</p>}
           {status === 'error' && <p className="marketplace-state marketplace-error" role="alert">{errorMessage}</p>}
-          {status === 'ready' && items.length === 0 && (
+          {status === 'ready' && filteredItems.length === 0 && (
             <div className="marketplace-empty">
               <Search aria-hidden="true" />
               <h3>No items found</h3>
-              <p>Try another search, or be the first to list something for the community.</p>
+              <p>
+                {selectedArea
+                  ? `There are no items in ${selectedArea} yet. Try another area or be the first to list something.`
+                  : 'Try another search, or be the first to list something for the community.'}
+              </p>
               <Link className="marketplace-primary-button" to="/marketplace/sell">List an item</Link>
             </div>
           )}
-          {status === 'ready' && items.length > 0 && (
+          {status === 'ready' && filteredItems.length > 0 && (
             <div className="marketplace-grid">
-              {items.map((item) => (
+              {filteredItems.map((item) => (
                 <Link className="marketplace-card" to={`/marketplace/items/${item._id}`} key={item._id}>
                   <div className="marketplace-card-image">
                     {item.images?.[0]

@@ -3,6 +3,8 @@ import { Link, Navigate, NavLink, useNavigate } from 'react-router-dom';
 import { ArrowRight, Heart, Home, LogOut, Package, Search, UserRound, MessageSquare } from 'lucide-react';
 import NotificationMenu from '../components/common/NotificationMenu';
 import WatchlistPanel from '../components/common/WatchlistPanel';
+import ProfileIdentityCard from '../components/common/ProfileIdentityCard';
+import ProfileDetailsGrid from '../components/common/ProfileDetailsGrid';
 import { clearUserProfile, getStoredUser } from '../utils/authStorage';
 import { getUserInfo, updateUserInfo } from '../utils/userApi';
 import '../owner/OwnerDashboard.css';
@@ -230,6 +232,7 @@ function TenantDashboard() {
 
         {status === 'ready' && profile && (
           <section className="tenant-profile-card" id="tenant-profile">
+            <ProfileIdentityCard profile={profile} roleLabel="Tenant" />
             <div className="tenant-profile-card-heading">
               <div>
                 <span className="tenant-eyebrow">PERSONAL INFORMATION</span>
@@ -242,24 +245,6 @@ function TenantDashboard() {
                   Edit profile
                 </button>
               )}
-            </div>
-
-            <div className="tenant-profile-summary">
-              {formValues.profileImage ? (
-                <img
-                  className="tenant-avatar"
-                  src={formValues.profileImage}
-                  alt={`${formValues.fullName || 'Your'} profile`}
-                />
-              ) : (
-                <div className="tenant-avatar tenant-avatar-fallback" aria-hidden="true">
-                  {initials || 'U'}
-                </div>
-              )}
-              <div className="tenant-profile-name">
-                <h3>{isEditing ? formValues.fullName || 'Your name' : profile.fullName || 'Name not provided'}</h3>
-                <p>{profile.email}</p>
-              </div>
             </div>
 
             {isEditing ? (
@@ -346,28 +331,16 @@ function TenantDashboard() {
               </form>
             ) : (
               <>
-                <div className="tenant-profile-fields">
-                  <div className="tenant-profile-field">
-                    <span>Full name</span>
-                    <strong>{profile.fullName || 'Not provided'}</strong>
-                  </div>
-                  <div className="tenant-profile-field">
-                    <span>Email address</span>
-                    <strong>{profile.email}</strong>
-                  </div>
-                  <div className="tenant-profile-field">
-                    <span>Phone</span>
-                    <strong>{profile.phone || 'Not provided'}</strong>
-                  </div>
-                  <div className="tenant-profile-field">
-                    <span>Occupation</span>
-                    <strong>{profile.occupation || 'Not provided'}</strong>
-                  </div>
-                  <div className="tenant-profile-field tenant-profile-field-wide">
-                    <span>Address</span>
-                    <strong>{profile.address || 'Not provided'}</strong>
-                  </div>
-                </div>
+                <ProfileDetailsGrid
+                  className="tenant-profile-fields"
+                  fields={[
+                    ['Full name', profile.fullName],
+                    ['Email address', profile.email],
+                    ['Phone', profile.phone],
+                    ['Occupation', profile.occupation],
+                    ['Address', profile.address],
+                  ]}
+                />
                 <p className="tenant-profile-note">
                   Your profile details are loaded from your BashaBondhu account.
                 </p>
