@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { getStoredUser } from '../utils/authStorage';
@@ -11,28 +12,28 @@ import OwnerLayout from './OwnerLayout';
 import OwnerProfile from './OwnerProfile';
 import MyProperties from './MyProperties';
 
-const mockMaybeSingle = jest.fn();
+const mockMaybeSingle = vi.fn();
 const originalFetch = global.fetch;
 
-jest.mock('../utils/authStorage', () => ({
-  getStoredUser: jest.fn(),
+vi.mock('../utils/authStorage', () => ({
+  getStoredUser: vi.fn(),
 }));
 
-jest.mock('../utils/propertyApi', () => ({
-  createProperty: jest.fn(),
-  deleteProperty: jest.fn(),
-  getMyProperties: jest.fn(),
-  updateProperty: jest.fn(),
+vi.mock('../utils/propertyApi', () => ({
+  createProperty: vi.fn(),
+  deleteProperty: vi.fn(),
+  getMyProperties: vi.fn(),
+  updateProperty: vi.fn(),
 }));
 
-jest.mock('../utils/notificationApi', () => ({
-  getNotifications: jest.fn(),
-  markNotificationRead: jest.fn(),
+vi.mock('../utils/notificationApi', () => ({
+  getNotifications: vi.fn(),
+  markNotificationRead: vi.fn(),
 }));
 
-jest.mock('../utils/contactRequestApi', () => ({
-  getOwnerContactRequests: jest.fn(),
-  updateContactRequest: jest.fn(),
+vi.mock('../utils/contactRequestApi', () => ({
+  getOwnerContactRequests: vi.fn(),
+  updateContactRequest: vi.fn(),
 }));
 
 function renderOwnerRoutes() {
@@ -325,7 +326,7 @@ test('confirms owner listing deletion before removing it from the list', async (
     monthly_rent: 25000,
     status: 'Available',
   }]);
-  const confirm = jest.spyOn(window, 'confirm').mockReturnValue(true);
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
   renderOwnerRoutes();
   await screen.findByRole('heading', { name: /welcome home, mina/i });

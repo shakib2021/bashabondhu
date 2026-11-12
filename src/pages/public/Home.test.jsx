@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import Home from './Home';
@@ -6,19 +7,19 @@ import { getPublicProperties } from '../../utils/propertyApi';
 import { reportProperty } from '../../utils/propertyReportApi';
 import { getMyWatchlist, setPropertyWatched } from '../../utils/watchlistApi';
 
-jest.mock('embla-carousel-react', () => ({
+vi.mock('embla-carousel-react', () => ({
   __esModule: true,
-  default: () => [jest.fn(), null],
+  default: () => [vi.fn(), null],
 }));
-jest.mock('../../utils/propertyApi', () => ({
-  getPublicProperties: jest.fn(),
+vi.mock('../../utils/propertyApi', () => ({
+  getPublicProperties: vi.fn(),
 }));
-jest.mock('../../utils/propertyReportApi', () => ({
-  reportProperty: jest.fn(),
+vi.mock('../../utils/propertyReportApi', () => ({
+  reportProperty: vi.fn(),
 }));
-jest.mock('../../utils/watchlistApi', () => ({
-  getMyWatchlist: jest.fn(),
-  setPropertyWatched: jest.fn(),
+vi.mock('../../utils/watchlistApi', () => ({
+  getMyWatchlist: vi.fn(),
+  setPropertyWatched: vi.fn(),
 }));
 
 const property = {
@@ -35,7 +36,7 @@ const property = {
 
 beforeEach(() => {
   localStorage.clear();
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   saveUserProfile(
     { id: 'mongo-user-id', email: 'home@example.com' },
     { fullName: 'Home User' },

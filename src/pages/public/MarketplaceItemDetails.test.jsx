@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import MarketplaceItemDetails from './MarketplaceItemDetails';
@@ -8,16 +9,16 @@ import {
   getMarketplaceItem,
 } from '../../utils/marketplaceApi';
 
-jest.mock('../../utils/marketplaceApi', () => ({
-  createMarketplaceComment: jest.fn(),
-  createMarketplaceCommentReply: jest.fn(),
-  createMarketplaceOffer: jest.fn(),
-  getMarketplaceItem: jest.fn(),
+vi.mock('../../utils/marketplaceApi', () => ({
+  createMarketplaceComment: vi.fn(),
+  createMarketplaceCommentReply: vi.fn(),
+  createMarketplaceOffer: vi.fn(),
+  getMarketplaceItem: vi.fn(),
 }));
 
 beforeEach(() => {
   localStorage.clear();
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   saveUserProfile(
     { id: 'buyer-id', email: 'buyer@example.com' },
     { fullName: 'Buyer' },

@@ -1,15 +1,16 @@
+import { vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import Marketplace from './Marketplace';
 import { getMarketplaceItems } from '../../utils/marketplaceApi';
 
-jest.mock('../../utils/marketplaceApi', () => ({
-  getMarketplaceItems: jest.fn(),
+vi.mock('../../utils/marketplaceApi', () => ({
+  getMarketplaceItems: vi.fn(),
 }));
 
 beforeEach(() => {
   localStorage.clear();
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   getMarketplaceItems.mockResolvedValue([{
     _id: 'chair-id',
     title: 'Study chair',

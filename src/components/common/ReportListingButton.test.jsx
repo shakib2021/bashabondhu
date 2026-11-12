@@ -1,15 +1,16 @@
+import { vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import ReportListingButton from './ReportListingButton';
 import { saveUserProfile } from '../../utils/authStorage';
 import { reportProperty } from '../../utils/propertyReportApi';
 
-jest.mock('../../utils/propertyReportApi', () => ({
-  reportProperty: jest.fn(),
+vi.mock('../../utils/propertyReportApi', () => ({
+  reportProperty: vi.fn(),
 }));
 
 beforeEach(() => {
   localStorage.clear();
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   saveUserProfile(
     { id: 'mongo-user-id', email: 'home@example.com' },
     { fullName: 'Home User' },
@@ -39,7 +40,7 @@ test('opens the report options and submits a selected reason', async () => {
 
 test('prompts signed-out users to log in before reporting', () => {
   localStorage.clear();
-  const onSignInRequired = jest.fn();
+  const onSignInRequired = vi.fn();
   render(
     <ReportListingButton
       propertyId="property-id"

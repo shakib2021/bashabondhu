@@ -1,15 +1,16 @@
+import { vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import WatchlistButton from './WatchlistButton';
 import { saveUserProfile } from '../../utils/authStorage';
 import { setPropertyWatched } from '../../utils/watchlistApi';
 
-jest.mock('../../utils/watchlistApi', () => ({
-  setPropertyWatched: jest.fn(),
+vi.mock('../../utils/watchlistApi', () => ({
+  setPropertyWatched: vi.fn(),
 }));
 
 beforeEach(() => {
   localStorage.clear();
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   saveUserProfile(
     { id: 'mongo-user-id', email: 'home@example.com' },
     { fullName: 'Home User' },
@@ -20,7 +21,7 @@ beforeEach(() => {
 
 test('saves a listing and reports the updated watchlist state', async () => {
   setPropertyWatched.mockResolvedValue(true);
-  const onChange = jest.fn();
+  const onChange = vi.fn();
   render(<WatchlistButton propertyId="property-id" watched={false} onChange={onChange} />);
 
   fireEvent.click(screen.getByRole('button', { name: 'Add to watchlist' }));
@@ -31,12 +32,12 @@ test('saves a listing and reports the updated watchlist state', async () => {
 
 test('asks signed-out users to log in instead of changing the watchlist', () => {
   localStorage.clear();
-  const onSignInRequired = jest.fn();
+  const onSignInRequired = vi.fn();
   render(
     <WatchlistButton
       propertyId="property-id"
       watched={false}
-      onChange={jest.fn()}
+      onChange={vi.fn()}
       onSignInRequired={onSignInRequired}
     />,
   );

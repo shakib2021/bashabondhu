@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { loginGoogleUser, registerGoogleUser } from './googleOAuth';
 import { getStoredUser } from './authStorage';
 
@@ -12,7 +13,7 @@ afterEach(() => {
 });
 
 test.each(['tenant', 'owner'])('registers the selected %s role with the backend', async (role) => {
-  global.fetch = jest.fn().mockResolvedValue({
+  global.fetch = vi.fn().mockResolvedValue({
     ok: true,
     json: async () => ({
       success: true,
@@ -47,14 +48,14 @@ test.each(['tenant', 'owner'])('registers the selected %s role with the backend'
 });
 
 test('does not allow admin registration', async () => {
-  global.fetch = jest.fn();
+  global.fetch = vi.fn();
   await expect(registerGoogleUser('admin', 'google-access-token'))
     .rejects.toThrow(/tenant or owner/i);
   expect(global.fetch).not.toHaveBeenCalled();
 });
 
 test('shows the backend error when registration fails', async () => {
-  global.fetch = jest.fn().mockResolvedValue({
+  global.fetch = vi.fn().mockResolvedValue({
     ok: false,
     json: async () => ({ success: false, message: 'Email already registered.' }),
   });
@@ -64,14 +65,14 @@ test('shows the backend error when registration fails', async () => {
 });
 
 test('explains when the backend is unreachable or blocked by CORS', async () => {
-  global.fetch = jest.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+  global.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
 
   await expect(registerGoogleUser('owner', 'google-access-token'))
     .rejects.toThrow(/backend/i);
 });
 
 test('logs in with Google and stores the backend user and session token', async () => {
-  global.fetch = jest.fn().mockResolvedValue({
+  global.fetch = vi.fn().mockResolvedValue({
     ok: true,
     json: async () => ({
       success: true,
@@ -109,7 +110,7 @@ test('logs in with Google and stores the backend user and session token', async 
 });
 
 test('shows the backend login error when the account cannot log in', async () => {
-  global.fetch = jest.fn().mockResolvedValue({
+  global.fetch = vi.fn().mockResolvedValue({
     ok: false,
     json: async () => ({ success: false, message: 'Account not found. Register first.' }),
   });

@@ -1,16 +1,17 @@
+import { vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { getStoredUser } from '../utils/authStorage';
 import { getUserInfo } from '../utils/userApi';
 import AdminLayout from './AdminLayout';
 
-jest.mock('../utils/authStorage', () => ({
-  clearUserProfile: jest.fn(),
-  getStoredUser: jest.fn(),
+vi.mock('../utils/authStorage', () => ({
+  clearUserProfile: vi.fn(),
+  getStoredUser: vi.fn(),
 }));
 
-jest.mock('../utils/userApi', () => ({
-  getUserInfo: jest.fn(),
+vi.mock('../utils/userApi', () => ({
+  getUserInfo: vi.fn(),
 }));
 
 function renderAdminRoutes() {

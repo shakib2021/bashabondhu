@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { getFirebaseAuth } from '../firebase';
 import {
@@ -8,19 +9,19 @@ import {
 } from './firebaseAuth';
 import { getStoredUser } from './authStorage';
 
-jest.mock('firebase/auth', () => ({
-  sendPasswordResetEmail: jest.fn(),
+vi.mock('firebase/auth', () => ({
+  sendPasswordResetEmail: vi.fn(),
 }));
 
-jest.mock('../firebase', () => ({
-  getFirebaseAuth: jest.fn(() => ({ mock: 'auth' })),
+vi.mock('../firebase', () => ({
+  getFirebaseAuth: vi.fn(() => ({ mock: 'auth' })),
 }));
 
 const originalFetch = global.fetch;
 
 beforeEach(() => {
   localStorage.clear();
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   getFirebaseAuth.mockReturnValue({ mock: 'auth' });
 });
 
@@ -29,7 +30,7 @@ afterEach(() => {
 });
 
 test('registers a Firebase user profile with the backend and stores the app session', async () => {
-  global.fetch = jest.fn().mockResolvedValue({
+  global.fetch = vi.fn().mockResolvedValue({
     ok: true,
     json: async () => ({
       success: true,
@@ -66,7 +67,7 @@ test('registers a Firebase user profile with the backend and stores the app sess
 });
 
 test('does not allow admin Firebase registration', async () => {
-  global.fetch = jest.fn();
+  global.fetch = vi.fn();
 
   await expect(registerFirebaseUser('admin', 'firebase-id-token', { fullName: 'Admin' }))
     .rejects.toThrow(/tenant or owner/i);
@@ -74,7 +75,7 @@ test('does not allow admin Firebase registration', async () => {
 });
 
 test('logs in with Firebase and stores the saved app role', async () => {
-  global.fetch = jest.fn().mockResolvedValue({
+  global.fetch = vi.fn().mockResolvedValue({
     ok: true,
     json: async () => ({
       success: true,
@@ -151,7 +152,7 @@ test('surfaces Firebase password reset delivery errors', async () => {
 });
 
 test('surfaces Firebase profile registration errors', async () => {
-  global.fetch = jest.fn().mockResolvedValue({
+  global.fetch = vi.fn().mockResolvedValue({
     ok: false,
     json: async () => ({ success: false, message: 'Email already registered.' }),
   });

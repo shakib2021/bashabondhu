@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import {
   createMarketplaceItem,
   createMarketplaceComment,
@@ -9,7 +10,7 @@ import { saveUserProfile } from './authStorage';
 
 beforeEach(() => {
   localStorage.clear();
-  jest.restoreAllMocks();
+  vi.restoreAllMocks();
   saveUserProfile(
     { id: 'user-id', email: 'person@example.com' },
     { fullName: 'Marketplace User' },
@@ -20,7 +21,7 @@ beforeEach(() => {
 
 test('publishes an item with uploaded photos for any signed-in role', async () => {
   const image = new File(['image'], 'chair.png', { type: 'image/png' });
-  const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue({
+  const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue({
     ok: true,
     json: async () => ({
       success: true,
@@ -43,7 +44,7 @@ test('publishes an item with uploaded photos for any signed-in role', async () =
 });
 
 test('searches public listings and submits offers with the signed-in session', async () => {
-  const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue({
+  const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue({
     ok: true,
     json: async () => ({ success: true, items: [] }),
   });
@@ -65,7 +66,7 @@ test('searches public listings and submits offers with the signed-in session', a
 });
 
 test('posts marketplace comments and replies through separate comment endpoints', async () => {
-  const fetchMock = jest.spyOn(global, 'fetch')
+  const fetchMock = vi.spyOn(global, 'fetch')
     .mockResolvedValueOnce({
       ok: true,
       json: async () => ({ success: true, comment: { _id: 'comment-id', text: 'Is pickup available?' } }),

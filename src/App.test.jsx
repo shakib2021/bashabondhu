@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import App from './App';
@@ -13,8 +14,8 @@ import {
 } from './utils/propertyApi';
 import { getNotifications } from './utils/notificationApi';
 
-jest.mock('embla-carousel-react', () => {
-  const React = require('react');
+vi.mock('embla-carousel-react', async () => {
+  const React = await import('react');
 
   return {
     __esModule: true,
@@ -54,30 +55,30 @@ jest.mock('embla-carousel-react', () => {
   };
 });
 
-jest.mock('firebase/auth', () => ({
-  sendPasswordResetEmail: jest.fn(),
-  signInWithEmailAndPassword: jest.fn(),
+vi.mock('firebase/auth', () => ({
+  sendPasswordResetEmail: vi.fn(),
+  signInWithEmailAndPassword: vi.fn(),
 }));
 
-jest.mock('./firebase', () => ({
-  getFirebaseAuth: jest.fn(() => ({ mock: 'auth' })),
+vi.mock('./firebase', () => ({
+  getFirebaseAuth: vi.fn(() => ({ mock: 'auth' })),
 }));
 
-jest.mock('./utils/propertyApi', () => ({
-  createProperty: jest.fn(),
-  createContactRequest: jest.fn(),
-  createPropertyComment: jest.fn(),
-  createPropertyCommentReply: jest.fn(),
-  getMyContactRequest: jest.fn(),
-  getOwnerContactDetails: jest.fn(),
-  getMyProperties: jest.fn().mockResolvedValue([]),
-  getPublicProperties: jest.fn().mockResolvedValue([]),
-  getPublicProperty: jest.fn(),
+vi.mock('./utils/propertyApi', () => ({
+  createProperty: vi.fn(),
+  createContactRequest: vi.fn(),
+  createPropertyComment: vi.fn(),
+  createPropertyCommentReply: vi.fn(),
+  getMyContactRequest: vi.fn(),
+  getOwnerContactDetails: vi.fn(),
+  getMyProperties: vi.fn().mockResolvedValue([]),
+  getPublicProperties: vi.fn().mockResolvedValue([]),
+  getPublicProperty: vi.fn(),
 }));
 
-jest.mock('./utils/notificationApi', () => ({
-  getNotifications: jest.fn().mockResolvedValue([]),
-  markNotificationRead: jest.fn().mockResolvedValue({ isRead: true }),
+vi.mock('./utils/notificationApi', () => ({
+  getNotifications: vi.fn().mockResolvedValue([]),
+  markNotificationRead: vi.fn().mockResolvedValue({ isRead: true }),
 }));
 
 beforeEach(() => {

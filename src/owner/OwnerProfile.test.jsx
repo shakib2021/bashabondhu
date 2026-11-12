@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { MemoryRouter, Outlet, Route, Routes } from 'react-router-dom';
@@ -5,13 +6,13 @@ import { getOwnerVerification } from '../utils/ownerVerificationApi';
 import { updateUserInfo } from '../utils/userApi';
 import OwnerProfile from './OwnerProfile';
 
-jest.mock('../utils/ownerVerificationApi', () => ({
-  getOwnerVerification: jest.fn(),
-  submitOwnerVerification: jest.fn(),
+vi.mock('../utils/ownerVerificationApi', () => ({
+  getOwnerVerification: vi.fn(),
+  submitOwnerVerification: vi.fn(),
 }));
 
-jest.mock('../utils/userApi', () => ({
-  updateUserInfo: jest.fn(),
+vi.mock('../utils/userApi', () => ({
+  updateUserInfo: vi.fn(),
 }));
 
 const profile = {
@@ -35,7 +36,7 @@ function OwnerProfileHarness({ onProfileUpdate }) {
   return <Outlet context={{ profile: currentProfile, onProfileUpdate: handleProfileUpdate }} />;
 }
 
-function renderOwnerProfile(onProfileUpdate = jest.fn()) {
+function renderOwnerProfile(onProfileUpdate = vi.fn()) {
   return render(
     <MemoryRouter initialEntries={['/owner/profile']}>
       <Routes>
@@ -61,7 +62,7 @@ test('lets an owner edit profile details and updates the dashboard profile', asy
     profileImage: 'https://example.com/mina.jpg',
   };
   updateUserInfo.mockResolvedValue(updatedProfile);
-  const onProfileUpdate = jest.fn();
+  const onProfileUpdate = vi.fn();
 
   renderOwnerProfile(onProfileUpdate);
   await screen.findByRole('heading', { name: 'My profile' });

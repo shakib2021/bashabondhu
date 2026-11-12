@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { createProperty, deleteProperty, updateProperty } from './propertyApi';
 
 const originalFetch = global.fetch;
@@ -8,7 +9,7 @@ beforeEach(() => {
     role: 'owner',
     token: 'owner-token',
   }));
-  global.fetch = jest.fn().mockResolvedValue({
+  global.fetch = vi.fn().mockResolvedValue({
     ok: true,
     json: async () => ({
       success: true,

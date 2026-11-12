@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { saveUserProfile, getStoredUser } from './authStorage';
 import { getUserInfo, updateUserInfo } from './userApi';
 
@@ -18,7 +19,7 @@ afterEach(() => {
 });
 
 test.each(['tenant', 'owner', 'admin'])('loads a %s profile from the backend', async (role) => {
-  global.fetch = jest.fn().mockResolvedValue({
+  global.fetch = vi.fn().mockResolvedValue({
     ok: true,
     json: async () => ({
       success: true,
@@ -56,7 +57,7 @@ test.each(['tenant', 'owner', 'admin'])('loads a %s profile from the backend', a
 });
 
 test('updates the profile through the backend and refreshes the stored name and picture', async () => {
-  global.fetch = jest.fn().mockResolvedValue({
+  global.fetch = vi.fn().mockResolvedValue({
     ok: true,
     json: async () => ({
       success: true,
@@ -91,7 +92,7 @@ test('updates the profile through the backend and refreshes the stored name and 
 });
 
 test('rejects an unsuccessful backend response with its message', async () => {
-  global.fetch = jest.fn().mockResolvedValue({
+  global.fetch = vi.fn().mockResolvedValue({
     ok: false,
     json: async () => ({ success: false, message: 'User not found.' }),
   });
@@ -100,7 +101,7 @@ test('rejects an unsuccessful backend response with its message', async () => {
 });
 
 test('rejects an invalid role in a successful response', async () => {
-  global.fetch = jest.fn().mockResolvedValue({
+  global.fetch = vi.fn().mockResolvedValue({
     ok: true,
     json: async () => ({ success: true, user: { id: 'mongo-user-id', role: 'unknown' } }),
   });
@@ -109,7 +110,7 @@ test('rejects an invalid role in a successful response', async () => {
 });
 
 test('requires a valid local session before calling the backend', async () => {
-  global.fetch = jest.fn();
+  global.fetch = vi.fn();
   await expect(getUserInfo('other@example.com')).rejects.toThrow(/session has expired/i);
   expect(global.fetch).not.toHaveBeenCalled();
 });
