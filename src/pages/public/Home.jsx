@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import useEmblaCarousel from 'embla-carousel-react';
-import { ArrowDownRight, ArrowLeft, ArrowRight, Check, House, MapPin } from 'lucide-react';
+import { ArrowDownRight, ArrowLeft, ArrowRight, Check, House, MapPin, Pause, Play, ShoppingBag } from 'lucide-react';
 import Navbar from '../../components/common/Navbar';
 import './Home.css';
 import Footer from '../../components/common/Footer';
@@ -11,9 +11,12 @@ import { getStoredUser } from '../../utils/authStorage';
 import ReportListingButton from '../../components/common/ReportListingButton';
 import WatchlistButton from '../../components/common/WatchlistButton';
 import { getMyWatchlist } from '../../utils/watchlistApi';
+import { getMarketplaceItems } from '../../utils/marketplaceApi';
 
 const POPULAR_RATING = 4.5;
 const NEW_LISTING_WINDOW = 2 * 24 * 60 * 60 * 1000;
+const CAROUSEL_AUTOPLAY_INTERVAL = 2000;
+const MARKETPLACE_PREVIEW_COUNT = 4;
 const artworkClasses = ['home-art-one', 'home-art-two', 'home-art-three', 'home-art-four'];
 const genderSearchTerms = {
   men: ['men', 'male'],
@@ -120,12 +123,17 @@ function Home() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [properties, setProperties] = useState([]);
+  const [marketplaceItems, setMarketplaceItems] = useState([]);
+  const [marketplaceStatus, setMarketplaceStatus] = useState('loading');
+  const [marketplaceError, setMarketplaceError] = useState('');
   const [userSession, setUserSession] = useState(getStoredUser);
   const [watchedPropertyIds, setWatchedPropertyIds] = useState(() => new Set());
   const [watchlistStatus, setWatchlistStatus] = useState('idle');
   const [watchlistError, setWatchlistError] = useState('');
   const [watchlistReloadKey, setWatchlistReloadKey] = useState(0);
   const [activeSlide, setActiveSlide] = useState(0);
+  const [isCarouselPaused, setIsCarouselPaused] = useState(false);
+  const [isCarouselHovered, setIsCarouselHovered] = useState(false);
   const [loadStatus, setLoadStatus] = useState('loading');
   const [errorMessage, setErrorMessage] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
@@ -193,6 +201,28 @@ function Home() {
   useEffect(() => {
     let isMounted = true;
 
+    getMarketplaceItems()
+      .then((items) => {
+        if (isMounted) {
+          setMarketplaceItems(items.slice(0, MARKETPLACE_PREVIEW_COUNT));
+          setMarketplaceStatus('ready');
+        }
+      })
+      .catch((error) => {
+        if (isMounted) {
+          setMarketplaceError(error.message || 'Could not load marketplace items.');
+          setMarketplaceStatus('error');
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
     if (!userSession?.token) {
       setWatchedPropertyIds(new Set());
       setWatchlistError('');
@@ -242,6 +272,22 @@ function Home() {
     emblaApi?.scrollTo(0, true);
   }, [emblaApi, properties]);
 
+  useEffect(() => {
+    if (
+      !emblaApi
+      || featuredProperties.length < 2
+      || isCarouselPaused
+      || isCarouselHovered
+      || loadStatus !== 'ready'
+    ) return undefined;
+
+    const intervalId = window.setInterval(
+      () => emblaApi.scrollNext(),
+      CAROUSEL_AUTOPLAY_INTERVAL,
+    );
+    return () => window.clearInterval(intervalId);
+  }, [emblaApi, featuredProperties.length, isCarouselHovered, isCarouselPaused, loadStatus]);
+
   const handleSignInRequired = () => {
     navigate('/login', { state: { from: returnTo } });
   };
@@ -269,6 +315,9 @@ function Home() {
             role="region"
             aria-roledescription="carousel"
             aria-label="Featured homes"
+            onMouseEnter={() => setIsCarouselHovered(true)}
+            onMouseLeave={() => setIsCarouselHovered(false)}
+            onFocusCapture={() => setIsCarouselPaused(true)}
           >
             {loadStatus === 'loading' && (
               <HomeLoader />
@@ -386,6 +435,14 @@ function Home() {
                     disabled={featuredProperties.length < 2}
                   >
                     <ArrowRight aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsCarouselPaused((paused) => !paused)}
+                    aria-label={isCarouselPaused ? 'Resume automatic featured home slides' : 'Pause automatic featured home slides'}
+                    aria-pressed={isCarouselPaused}
+                  >
+                    {isCarouselPaused ? <Play aria-hidden="true" /> : <Pause aria-hidden="true" />}
                   </button>
                 </div>
               </>
@@ -520,11 +577,62 @@ function Home() {
           )}
         </section>
 
+        <section className="marketplace-preview section-wrap" aria-labelledby="marketplace-preview-title">
+          <div className="marketplace-preview-heading">
+            <div>
+              <span className="marketplace-preview-eyebrow">GOOD FINDS, CLOSE BY</span>
+              <h2 id="marketplace-preview-title">A new home for good things.</h2>
+              <p>Browse pre-loved finds from your neighbors, or pass something on.</p>
+            </div>
+            <Link className="marketplace-preview-all" to="/marketplace">
+              Explore Buy &amp; Sell <ArrowRight aria-hidden="true" />
+            </Link>
+          </div>
+
+          {marketplaceStatus === 'loading' && (
+            <p className="marketplace-preview-state" role="status">Finding nearby items…</p>
+          )}
+          {marketplaceStatus === 'error' && (
+            <p className="marketplace-preview-state marketplace-preview-error" role="alert">{marketplaceError}</p>
+          )}
+          {marketplaceStatus === 'ready' && marketplaceItems.length === 0 && (
+            <p className="marketplace-preview-state">No items listed yet. Be the first to share something.</p>
+          )}
+          {marketplaceStatus === 'ready' && marketplaceItems.length > 0 && (
+            <div className="marketplace-preview-grid">
+              {marketplaceItems.map((item) => (
+                <Link
+                  className="marketplace-preview-card"
+                  to={`/marketplace/items/${item._id}`}
+                  key={item._id}
+                  aria-label={`View ${item.title}, ${formatMarketplacePrice(item.price)}`}
+                >
+                  <span className="marketplace-preview-image">
+                    {item.images?.[0]
+                      ? <img src={item.images[0]} alt="" loading="lazy" />
+                      : <ShoppingBag aria-hidden="true" />}
+                    {item.condition && <span className="marketplace-preview-condition">{item.condition}</span>}
+                  </span>
+                  <span className="marketplace-preview-card-copy">
+                    <strong>{item.title}</strong>
+                    <span>{item.location || 'Local listing'}</span>
+                    <b>{formatMarketplacePrice(item.price)}</b>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+
       </main>
 
       <Footer />
     </>
   );
+}
+
+function formatMarketplacePrice(value) {
+  return `৳${Number(value).toLocaleString('en-BD')}`;
 }
 
 export default Home;
