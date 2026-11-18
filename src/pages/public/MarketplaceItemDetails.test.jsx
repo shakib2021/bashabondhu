@@ -8,12 +8,17 @@ import {
   createMarketplaceCommentReply,
   getMarketplaceItem,
 } from '../../utils/marketplaceApi';
+import { startChat } from '../../utils/chatApi';
 
 vi.mock('../../utils/marketplaceApi', () => ({
   createMarketplaceComment: vi.fn(),
   createMarketplaceCommentReply: vi.fn(),
   createMarketplaceOffer: vi.fn(),
   getMarketplaceItem: vi.fn(),
+}));
+
+vi.mock('../../utils/chatApi', () => ({
+  startChat: vi.fn(),
 }));
 
 beforeEach(() => {
@@ -49,9 +54,10 @@ beforeEach(() => {
     author: 'Buyer',
     text: 'Thanks!',
   });
+  startChat.mockResolvedValue({ id: 'conversation-id' });
 });
 
-test('uses public comments and replies instead of a private seller message', async () => {
+test('offers private seller chat alongside public comments and replies', async () => {
   render(
     <MemoryRouter initialEntries={['/marketplace/items/item-id']}>
       <Routes>
@@ -61,7 +67,7 @@ test('uses public comments and replies instead of a private seller message', asy
   );
 
   expect(await screen.findByRole('heading', { name: 'Desk lamp' })).toBeInTheDocument();
-  expect(screen.queryByLabelText('Message to seller (optional)')).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Message Seller' })).toBeInTheDocument();
 
   fireEvent.change(screen.getByLabelText('Share a question or comment'), {
     target: { value: 'Is pickup available?' },
@@ -80,5 +86,13 @@ test('uses public comments and replies instead of a private seller message', asy
   await waitFor(() => {
     expect(createMarketplaceCommentReply).toHaveBeenCalledWith('item-id', 'comment-id', 'Thanks!');
     expect(screen.getByText('Thanks!')).toBeInTheDocument();
+  });
+
+  fireEvent.change(screen.getByLabelText('Your message to Seller'), {
+    target: { value: 'Could I pick this up today?' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+  await waitFor(() => {
+    expect(startChat).toHaveBeenCalledWith('marketplace', 'item-id', 'Could I pick this up today?');
   });
 });

@@ -5,6 +5,9 @@ import { getNotifications, markNotificationRead } from '../../utils/notification
 import { getStoredUser } from '../../utils/authStorage';
 
 function notificationHref(notification) {
+  if (notification.type === 'chat-message' && notification.chatId) {
+    return `/messages?conversation=${encodeURIComponent(notification.chatId)}`;
+  }
   if (notification.type === 'admin-warning') {
     return getStoredUser()?.role === 'owner' ? '/owner/profile' : '/tenant/dashboard';
   }

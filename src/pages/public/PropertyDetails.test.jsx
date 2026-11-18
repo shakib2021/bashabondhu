@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { getStoredUser } from '../../utils/authStorage';
+import { startChat } from '../../utils/chatApi';
 import { getMyContactRequest, getPublicProperty } from '../../utils/propertyApi';
 import { createVisitRequest, getMyVisitRequest } from '../../utils/visitRequestApi';
 import PropertyDetails from './PropertyDetails';
@@ -19,6 +20,9 @@ vi.mock('../../utils/propertyApi', () => ({
 vi.mock('../../utils/visitRequestApi', () => ({
   createVisitRequest: vi.fn(),
   getMyVisitRequest: vi.fn(),
+}));
+vi.mock('../../utils/chatApi', () => ({
+  startChat: vi.fn(),
 }));
 
 beforeEach(() => {
@@ -64,6 +68,7 @@ test('lets a tenant submit a requested property visit date and time', async () =
   fireEvent.change(screen.getByLabelText('Requested date and time'), {
     target: { value: '2030-01-02T12:30' },
   });
+
   fireEvent.click(screen.getByRole('button', { name: 'Request visit' }));
 
   await waitFor(() => {
@@ -72,5 +77,30 @@ test('lets a tenant submit a requested property visit date and time', async () =
       new Date('2030-01-02T12:30').toISOString(),
     );
     expect(screen.getByText('Visit pending')).toBeInTheDocument();
+  });
+});
+
+test('lets a tenant start a private chat with a property owner', async () => {
+  startChat.mockResolvedValue({ id: 'conversation-1' });
+  render(
+    <MemoryRouter initialEntries={['/properties/property-1']}>
+      <Routes>
+        <Route path="/properties/:propertyId" element={<PropertyDetails />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+
+  await screen.findByRole('heading', { name: 'Sunny apartment' });
+  fireEvent.change(screen.getByLabelText('Your message to Property Owner'), {
+    target: { value: 'Is the home available next month?' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+
+  await waitFor(() => {
+    expect(startChat).toHaveBeenCalledWith(
+      'property',
+      'property-1',
+      'Is the home available next month?',
+    );
   });
 });

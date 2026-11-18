@@ -174,6 +174,10 @@ function TenantDashboard() {
             <span className="owner-nav-icon" aria-hidden="true"><Package /></span>
             My marketplace
           </Link>
+          <Link className="owner-side-link" to="/messages">
+            <span className="owner-nav-icon" aria-hidden="true"><MessageSquare /></span>
+            Messages
+          </Link>
           <Link className="owner-side-link" to="/tenant/dashboard#watchlist">
             <span className="owner-nav-icon" aria-hidden="true"><Heart /></span>
             Watchlist

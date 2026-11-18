@@ -8,6 +8,8 @@ const OwnerVerification = require('./models/OwnerVerification');
 const PropertyImage = require('./models/PropertyImage');
 const PropertyReport = require('./models/PropertyReport');
 const MarketplaceItem = require('./models/MarketplaceItem');
+const Conversation = require('./models/Conversation');
+const ChatMessage = require('./models/ChatMessage');
 const User = require('./models/User');
 const { createAuthenticate } = require('./middleware/authenticate');
 const { createImageUploadMiddleware } = require('./middleware/imageUpload');
@@ -89,6 +91,8 @@ function createApp({
   PropertyImageModel = PropertyImage,
   PropertyReportModel = PropertyReport,
   MarketplaceItemModel = MarketplaceItem,
+  ConversationModel = Conversation,
+  ChatMessageModel = ChatMessage,
   firebaseUserLookup = getVerifiedFirebaseUser,
   googleUserLookup = getVerifiedGoogleUser,
   tokenSigner = signAuthToken,
@@ -1221,6 +1225,7 @@ function createApp({
           propertyTitle: notification.propertyTitle,
           marketplaceItemId: notification.marketplaceItemId,
           itemTitle: notification.itemTitle,
+          chatId: notification.chatId,
           commentId: notification.commentId,
           replyId: notification.replyId,
           contactRequestId: notification.contactRequestId,
@@ -1257,6 +1262,241 @@ function createApp({
 
       const notification = user.notifications.find((item) => String(item._id) === req.params.notificationId);
       return res.json({ success: true, notification });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.get('/api/chats', authenticate, async (req, res, next) => {
+    try {
+      const user = await UserModel.findById(req.userId);
+      if (!user || user.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+
+      const conversations = await ConversationModel.find({ 'participants.userId': user._id })
+        .sort({ updatedAt: -1 })
+        .limit(100)
+        .lean();
+      const chats = conversations.map((conversation) => {
+        const currentParticipant = conversation.participants.find(
+          (participant) => String(participant.userId) === String(user._id),
+        );
+        const otherParticipant = conversation.participants.find(
+          (participant) => String(participant.userId) !== String(user._id),
+        );
+        return {
+          id: String(conversation._id),
+          listingType: conversation.listingType,
+          listingId: String(conversation.listingId),
+          listingTitle: conversation.listingTitle,
+          otherParticipant: {
+            id: String(otherParticipant?.userId || ''),
+            fullName: otherParticipant?.fullName || 'BashaBondhu member',
+          },
+          lastMessage: conversation.lastMessage || '',
+          unreadCount: currentParticipant?.unreadCount || 0,
+          updatedAt: conversation.updatedAt,
+        };
+      });
+      return res.json({ success: true, chats });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.post('/api/chats/start', authenticate, async (req, res, next) => {
+    try {
+      const user = await UserModel.findById(req.userId);
+      if (!user || user.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      const { listingType, listingId } = req.body;
+      if (!['property', 'marketplace'].includes(listingType) || !mongoose.isValidObjectId(listingId)) {
+        return res.status(400).json({ success: false, message: 'Choose a valid listing to message about.' });
+      }
+      const text = typeof req.body.text === 'string' ? req.body.text.trim() : '';
+      if (!text || text.length > 2000) {
+        return res.status(400).json({ success: false, message: 'Messages must be between 1 and 2000 characters.' });
+      }
+
+      const isProperty = listingType === 'property';
+      const listing = isProperty
+        ? await AccommodationModel.findById(listingId).lean()
+        : await MarketplaceItemModel.findById(listingId).lean();
+      const listingIsAvailable = listing && (
+        isProperty ? listing.status === 'Available' : listing.status === 'available'
+      );
+      if (!listingIsAvailable) {
+        return res.status(404).json({ success: false, message: 'This listing is no longer available.' });
+      }
+
+      const ownerId = isProperty
+        ? String(listing.ownerId?._id || listing.ownerId)
+        : String(listing.sellerId?._id || listing.sellerId);
+      if (ownerId === String(user._id)) {
+        return res.status(403).json({ success: false, message: 'You cannot message yourself about your listing.' });
+      }
+      const owner = await UserModel.findById(ownerId);
+      if (!owner || owner.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'The listing owner is unavailable.' });
+      }
+
+      const participantIds = [String(user._id), String(owner._id)].sort();
+      const conversationKey = `${listingType}:${listingId}:${participantIds.join(':')}`;
+      const conversation = await ConversationModel.findOneAndUpdate(
+        { conversationKey },
+        {
+          $setOnInsert: {
+            conversationKey,
+            listingType,
+            listingId,
+            listingTitle: listing.title,
+            participants: [
+              { userId: user._id, fullName: user.fullName },
+              { userId: owner._id, fullName: owner.fullName },
+            ],
+          },
+        },
+        { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true },
+      );
+      const message = await ChatMessageModel.create({
+        conversationId: conversation._id,
+        senderId: user._id,
+        senderName: user.fullName,
+        text,
+      });
+      await ConversationModel.updateOne(
+        { _id: conversation._id },
+        { $set: { lastMessage: text }, $inc: { 'participants.$[recipient].unreadCount': 1 } },
+        { arrayFilters: [{ 'recipient.userId': owner._id }] },
+      );
+      await saveNotification(owner._id, user, {
+        type: 'chat-message',
+        title: `${user.fullName.slice(0, 120)} sent you a message`,
+        message: `${listing.title}: ${text}`.slice(0, 300),
+        chatId: conversation._id,
+        ...(isProperty
+          ? { propertyId: listing._id, propertyTitle: listing.title }
+          : { marketplaceItemId: listing._id, itemTitle: listing.title }),
+      });
+
+      return res.status(201).json({
+        success: true,
+        conversation: {
+          id: String(conversation._id),
+          listingType,
+          listingId: String(listing._id),
+          listingTitle: listing.title,
+          otherParticipant: { id: String(owner._id), fullName: owner.fullName },
+        },
+        message: {
+          id: String(message._id),
+          senderId: String(message.senderId),
+          senderName: message.senderName,
+          text: message.text,
+          createdAt: message.createdAt,
+        },
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.get('/api/chats/:conversationId/messages', authenticate, async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.conversationId)) {
+        return res.status(404).json({ success: false, message: 'Chat not found.' });
+      }
+      const user = await UserModel.findById(req.userId);
+      if (!user || user.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      const conversation = await ConversationModel.findOne({
+        _id: req.params.conversationId,
+        'participants.userId': user._id,
+      }).lean();
+      if (!conversation) {
+        return res.status(404).json({ success: false, message: 'Chat not found.' });
+      }
+
+      const messages = await ChatMessageModel.find({ conversationId: conversation._id })
+        .sort({ createdAt: -1 })
+        .limit(100)
+        .lean();
+      await ConversationModel.updateOne(
+        { _id: conversation._id, 'participants.userId': user._id },
+        { $set: { 'participants.$.unreadCount': 0 } },
+      );
+      return res.json({
+        success: true,
+        messages: messages.reverse().map((message) => ({
+          id: String(message._id),
+          senderId: String(message.senderId),
+          senderName: message.senderName,
+          text: message.text,
+          createdAt: message.createdAt,
+        })),
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.post('/api/chats/:conversationId/messages', authenticate, async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.conversationId)) {
+        return res.status(404).json({ success: false, message: 'Chat not found.' });
+      }
+      const user = await UserModel.findById(req.userId);
+      if (!user || user.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      const text = typeof req.body.text === 'string' ? req.body.text.trim() : '';
+      if (!text || text.length > 2000) {
+        return res.status(400).json({ success: false, message: 'Messages must be between 1 and 2000 characters.' });
+      }
+      const conversation = await ConversationModel.findOne({
+        _id: req.params.conversationId,
+        'participants.userId': user._id,
+      });
+      if (!conversation) {
+        return res.status(404).json({ success: false, message: 'Chat not found.' });
+      }
+
+      const recipient = conversation.participants.find(
+        (participant) => String(participant.userId) !== String(user._id),
+      );
+      const message = await ChatMessageModel.create({
+        conversationId: conversation._id,
+        senderId: user._id,
+        senderName: user.fullName,
+        text,
+      });
+      await ConversationModel.updateOne(
+        { _id: conversation._id },
+        { $set: { lastMessage: text }, $inc: { 'participants.$[recipient].unreadCount': 1 } },
+        { arrayFilters: [{ 'recipient.userId': recipient.userId }] },
+      );
+      await saveNotification(recipient.userId, user, {
+        type: 'chat-message',
+        title: `${user.fullName.slice(0, 120)} sent you a message`,
+        message: `${conversation.listingTitle}: ${text}`.slice(0, 300),
+        chatId: conversation._id,
+        ...(conversation.listingType === 'property'
+          ? { propertyId: conversation.listingId, propertyTitle: conversation.listingTitle }
+          : { marketplaceItemId: conversation.listingId, itemTitle: conversation.listingTitle }),
+      });
+      return res.status(201).json({
+        success: true,
+        message: {
+          id: String(message._id),
+          senderId: String(message.senderId),
+          senderName: message.senderName,
+          text: message.text,
+          createdAt: message.createdAt,
+        },
+      });
     } catch (error) {
       return next(error);
     }
@@ -1794,6 +2034,7 @@ function createApp({
           rating: property.rating,
           createdAt: property.createdAt,
           owner: {
+            id: String(property.ownerId?._id || property.ownerId || ''),
             fullName: property.ownerId?.fullName || 'Property owner',
             isVerified: property.ownerId?.ownerVerificationStatus === 'approved',
           },

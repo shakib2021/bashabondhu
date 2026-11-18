@@ -5,6 +5,7 @@ import Navbar from '../../components/common/Navbar';
 import Footer from '../../components/common/Footer';
 import '../../components/common/footer.css';
 import { getStoredUser } from '../../utils/authStorage';
+import ChatComposer from '../../components/common/ChatComposer';
 import {
   createMarketplaceComment,
   createMarketplaceCommentReply,
@@ -169,7 +170,7 @@ function MarketplaceItemDetails() {
               )}
               {item.status === 'available' && !session?.token && (
                 <div className="marketplace-sign-in-note">
-                  <p>Sign in to make an offer or join the conversation.</p>
+                  <p>Sign in to make an offer.</p>
                   <Link className="marketplace-primary-button" to="/login" state={{ from: `/marketplace/items/${itemId}` }}>Sign in to make an offer</Link>
                 </div>
               )}
@@ -178,6 +179,15 @@ function MarketplaceItemDetails() {
                   <p>This is your listing. Manage buyer offers from your marketplace workspace.</p>
                   <Link to="/marketplace/my-listings">Manage my listings</Link>
                 </div>
+              )}
+              {item.status === 'available' && session?.id !== item.sellerId && (
+                <ChatComposer
+                  listingType="marketplace"
+                  listingId={itemId}
+                  listingTitle={item.title}
+                  recipientName={item.sellerName || 'the seller'}
+                  returnTo={`/marketplace/items/${itemId}`}
+                />
               )}
                 <section className="marketplace-comments" aria-labelledby="marketplace-comments-heading">
                   <div className="marketplace-comments-heading">

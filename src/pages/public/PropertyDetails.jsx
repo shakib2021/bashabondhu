@@ -13,6 +13,7 @@ import {
   getPublicProperty,
 } from '../../utils/propertyApi';
 import { getStoredUser } from '../../utils/authStorage';
+import ChatComposer from '../../components/common/ChatComposer';
 import { createVisitRequest, getMyVisitRequest } from '../../utils/visitRequestApi';
 import './PropertyDetails.css';
 
@@ -539,6 +540,17 @@ function PropertyDetails() {
                     </>
                   )
                 )}
+                {property.status === 'Available'
+                  && (!session?.id || String(session.id) !== String(property.owner?.id))
+                  && (
+                    <ChatComposer
+                      listingType="property"
+                      listingId={propertyId}
+                      listingTitle={property.title}
+                      recipientName={property.owner?.fullName || 'the owner'}
+                      returnTo={`${location.pathname}${location.search}#contact-request`}
+                    />
+                  )}
                 <section className="property-visit-request" id="visit-request" aria-labelledby="visit-request-title">
                   <span className="property-detail-eyebrow" id="visit-request-title">REQUEST A VISIT</span>
                   {property.status !== 'Available' ? (

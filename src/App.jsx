@@ -25,6 +25,7 @@ import AdminUsers from './admin/AdminUsers';
 import AdminUserDetails from './admin/AdminUserDetails';
 import AdminProfile from './admin/AdminProfile';
 import HowToUse from './pages/public/HowToUse';
+import ChatInbox from './pages/public/ChatInbox';
 
 function App() {
   return (
@@ -37,6 +38,7 @@ function App() {
           <Route path="/marketplace/items/:itemId" element={<MarketplaceItemDetails />} />
           <Route path="/marketplace/sell" element={<SellMarketplaceItem />} />
           <Route path="/marketplace/my-listings" element={<MyMarketplace />} />
+          <Route path="/messages" element={<ChatInbox />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/how-to-use" element={<HowToUse />} />

@@ -138,6 +138,10 @@ function OwnerLayout() {
             <span className="owner-nav-icon" aria-hidden="true"><MessageSquare /></span>
             Contact requests
           </NavLink>
+          <NavLink to="/messages" className={({ isActive }) => `owner-side-link${isActive ? ' is-active' : ''}`}>
+            <span className="owner-nav-icon" aria-hidden="true"><MessageSquare /></span>
+            Messages
+          </NavLink>
           <NavLink to="/owner/visit-requests" className={({ isActive }) => `owner-side-link${isActive ? ' is-active' : ''}`}>
             <span className="owner-nav-icon" aria-hidden="true"><CalendarDays /></span>
             Visit requests

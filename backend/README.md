@@ -71,6 +71,9 @@ The backend also uses the Strategy pattern in `src/utils/imageValidation.js`: it
 - `GET /api/property-images/:imageId` — serves legacy photos stored in the separate property-image collection.
 - `GET /api/users/me/watchlist` — returns the signed-in user's saved available listings.
 - `PUT /api/users/me/watchlist/:propertyId` — requires `{ "watched": true | false }` to save or remove an available listing.
+- `POST /api/chats/start` — starts or resumes a private conversation about an available property or marketplace listing and sends the first message.
+- `GET /api/chats` — returns the signed-in user's latest conversations and unread counts.
+- `GET /api/chats/:conversationId/messages` and `POST /api/chats/:conversationId/messages` — read and send messages in a conversation. Only its two participants can access it.
 - `POST /api/properties/:propertyId/reports` — authenticated users can submit a report with a category and optional details.
 - `GET /api/admin/reports` — admins can review the latest 100 submitted property reports.
 - `GET /api/health` — health check.

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Search } from 'lucide-react';
+import { MessageSquare, Search } from 'lucide-react';
 import { getStoredUser } from '../../utils/authStorage';
 import './Navbar.css';
 
@@ -110,19 +110,25 @@ function Navbar() {
           </form>
           <div className="nav-actions">
             {user ? (
-              <Link className="nav-dashboard" to={dashboardPath} onClick={closeMenu} aria-label="Open your dashboard">
-                {avatarUrl && !avatarFailed ? (
-                  <img
-                    className="nav-avatar"
-                    src={avatarUrl}
-                    alt=""
-                    onError={() => setAvatarFailed(true)}
-                  />
-                ) : (
-                  <span className="nav-avatar nav-avatar-fallback" aria-hidden="true">{initials}</span>
-                )}
-                <span>Dashboard</span>
-              </Link>
+              <>
+                <Link className="nav-messages" to="/messages" onClick={closeMenu} aria-label="Open messages">
+                  <MessageSquare aria-hidden="true" />
+                  <span>Messages</span>
+                </Link>
+                <Link className="nav-dashboard" to={dashboardPath} onClick={closeMenu} aria-label="Open your dashboard">
+                  {avatarUrl && !avatarFailed ? (
+                    <img
+                      className="nav-avatar"
+                      src={avatarUrl}
+                      alt=""
+                      onError={() => setAvatarFailed(true)}
+                    />
+                  ) : (
+                    <span className="nav-avatar nav-avatar-fallback" aria-hidden="true">{initials}</span>
+                  )}
+                  <span>Dashboard</span>
+                </Link>
+              </>
             ) : (
               <>
                 <Link className="nav-login" to="/login" state={{ from: returnTo }} onClick={closeMenu}>Log in</Link>
