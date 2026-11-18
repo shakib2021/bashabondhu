@@ -221,6 +221,155 @@
   font-size: 10px;
 }
 
+.admin-user-detail-link {
+  width: fit-content;
+  text-decoration: none;
+}
+
+.admin-user-detail-link:hover {
+  color: #1e7658;
+  text-decoration: underline;
+}
+
+.admin-user-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.admin-warning-form {
+  display: grid;
+  gap: 7px;
+  min-width: 190px;
+  margin-top: 9px;
+}
+
+.admin-warning-form label {
+  color: #53665b;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.admin-warning-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px;
+  border: 1px solid #dfe8df;
+  border-radius: 5px;
+  color: #334d40;
+  font: inherit;
+  font-size: 11px;
+  resize: vertical;
+}
+
+.admin-detail-back {
+  display: inline-block;
+  margin-bottom: 18px;
+  color: #367651;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.admin-detail-back:hover {
+  text-decoration: underline;
+}
+
+.admin-user-profile-image {
+  display: block;
+  width: 72px;
+  height: 72px;
+  margin-top: 14px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.admin-detail-card {
+  margin-bottom: 16px;
+  padding: 20px;
+  border: 1px solid #e7ede7;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.admin-detail-card h2 {
+  margin: 0 0 16px;
+  color: #344e40;
+  font-size: 15px;
+}
+
+.admin-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px 24px;
+  margin: 0;
+}
+
+.admin-detail-grid div {
+  min-width: 0;
+}
+
+.admin-detail-grid dt {
+  color: #849087;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.admin-detail-grid dd {
+  margin: 5px 0 0;
+  overflow-wrap: anywhere;
+  color: #334d40;
+  font-size: 12px;
+}
+
+.admin-warning-history,
+.admin-user-post-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-warning-history li,
+.admin-user-post {
+  padding: 13px;
+  border: 1px solid #edf1ed;
+  border-radius: 7px;
+}
+
+.admin-warning-history p,
+.admin-user-post p {
+  margin: 0 0 6px;
+  color: #56685d;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.admin-warning-history time,
+.admin-user-post small {
+  color: #849087;
+  font-size: 10px;
+}
+
+.admin-user-post {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.admin-user-post h3 {
+  margin: 0 0 6px;
+  color: #334d40;
+  font-size: 13px;
+}
+
+.admin-detail-empty {
+  margin: 0;
+  color: #849087;
+  font-size: 11px;
+}
+
 .admin-status-pill {
   display: inline-flex;
   padding: 5px 8px;
@@ -344,5 +493,9 @@
 
   .admin-search {
     width: 100%;
+  }
+
+  .admin-detail-grid {
+    grid-template-columns: 1fr;
   }
 }

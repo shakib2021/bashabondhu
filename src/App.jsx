@@ -15,12 +15,14 @@ import OwnerProfile from './owner/OwnerProfile';
 import MyProperties from './owner/MyProperties';
 import AddProperty from './owner/AddProperty';
 import ContactRequests from './owner/ContactRequests';
+import VisitRequests from './owner/VisitRequests';
 import OwnerVerifications from './admin/OwnerVerifications';
 import AdminLayout from './admin/AdminLayout';
 import AdminOverview from './admin/AdminOverview';
 import AdminPosts from './admin/AdminPosts';
 import AdminReports from './admin/AdminReports';
 import AdminUsers from './admin/AdminUsers';
+import AdminUserDetails from './admin/AdminUserDetails';
 import AdminProfile from './admin/AdminProfile';
 
 function App() {
@@ -43,12 +45,14 @@ function App() {
             <Route path="posts" element={<AdminPosts />} />
             <Route path="reports" element={<AdminReports />} />
             <Route path="users" element={<AdminUsers />} />
+            <Route path="users/:userId" element={<AdminUserDetails />} />
             <Route path="profile" element={<AdminProfile />} />
           </Route>
           <Route path="/owner" element={<OwnerLayout />}>
             <Route index element={<OwnerDashboard />} />
             <Route path="profile" element={<OwnerProfile />} />
             <Route path="contact-requests" element={<ContactRequests />} />
+            <Route path="visit-requests" element={<VisitRequests />} />
             <Route path="properties" element={<MyProperties />} />
             <Route path="properties/new" element={<AddProperty />} />
             <Route path="properties/:propertyId/edit" element={<AddProperty />} />

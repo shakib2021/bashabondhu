@@ -11,6 +11,7 @@ const properties = [];
 const reports = [];
 const verifications = [];
 const propertyImages = [];
+const marketplaceItems = [];
 
 const UserModel = {
   async findOne(query) {
@@ -18,8 +19,19 @@ const UserModel = {
       Object.entries(query).every(([field, value]) => user[field] === value)
     )) || null;
   },
-  async findById(id) {
-    return users.get(String(id)) || null;
+  findById(id) {
+    const user = users.get(String(id)) || null;
+    return {
+      select() {
+        return this;
+      },
+      async lean() {
+        return user;
+      },
+      then(resolve, reject) {
+        return Promise.resolve(user).then(resolve, reject);
+      },
+    };
   },
   find() {
     return {
@@ -62,6 +74,14 @@ const UserModel = {
         isRead: false,
         ...item,
       })));
+    } else if (update.$push?.warnings) {
+      user.warnings = user.warnings || [];
+      user.warnings.push(...update.$push.warnings.$each.map((item, index) => ({
+        _id: String(user.warnings.length + index + 1).padStart(24, '0'),
+        createdAt: new Date(),
+        ...item,
+      })));
+      user.warningCount = (user.warningCount || 0) + (update.$inc?.warningCount || 0);
     } else if (update.$addToSet?.watchlist) {
       user.watchlist = user.watchlist || [];
       if (!user.watchlist.some((item) => String(item) === String(update.$addToSet.watchlist))) {
@@ -84,6 +104,7 @@ function createTestApp() {
   reports.length = 0;
   verifications.length = 0;
   propertyImages.length = 0;
+  marketplaceItems.length = 0;
   users.set('existing-user', {
     _id: 'existing-user',
     fullName: 'Existing User',
@@ -236,6 +257,24 @@ function createTestApp() {
         return report;
       },
     },
+    MarketplaceItemModel: {
+      find(query = {}) {
+        const matchingItems = marketplaceItems.filter((item) => Object.entries(query).every(([field, value]) => (
+          String(item[field]) === String(value)
+        )));
+        return {
+          sort() {
+            return this;
+          },
+          limit() {
+            return this;
+          },
+          async lean() {
+            return matchingItems;
+          },
+        };
+      },
+    },
     AccommodationModel: {
       async countDocuments() {
         return properties.length;
@@ -249,6 +288,7 @@ function createTestApp() {
       find(query) {
         const matchingProperties = properties.filter((property) => Object.entries(query).every(([field, value]) => {
           if (field === 'contactRequests.0') return property.contactRequests?.length > 0;
+          if (field === 'visitRequests.0') return property.visitRequests?.length > 0;
           if (field === '_id' && value?.$in) {
             return value.$in.some((id) => String(id) === String(property._id));
           }
@@ -349,10 +389,25 @@ function createTestApp() {
             ));
             return !duplicate;
           }
+          if (field === 'visitRequests') {
+            if (value.$elemMatch) {
+              return item.visitRequests?.some((visitRequest) => (
+                String(visitRequest._id) === String(value.$elemMatch._id)
+                && visitRequest.status === value.$elemMatch.status
+              ));
+            }
+            const duplicate = item.visitRequests?.some((visitRequest) => (
+              String(visitRequest.userId) === String(value.$not.$elemMatch.userId)
+              && visitRequest.status === value.$not.$elemMatch.status
+            ));
+            return !duplicate;
+          }
           return item[field] === value;
         }));
         if (!property) return null;
-        if (update.$set && !Object.keys(update.$set).some((field) => field.startsWith('contactRequests.$.'))) {
+        if (update.$set && !Object.keys(update.$set).some((field) => (
+          field.startsWith('contactRequests.$.') || field.startsWith('visitRequests.$.')
+        ))) {
           Object.assign(property, update.$set);
           return property;
         }
@@ -382,6 +437,19 @@ function createTestApp() {
           return property;
         }
 
+        if (update.$push?.visitRequests) {
+          property.visitRequests = property.visitRequests || [];
+          const [visitRequest] = update.$push.visitRequests.$each;
+          property.visitRequests.push({
+            _id: '650000000000000000000032',
+            status: 'pending',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            ...visitRequest,
+          });
+          return property;
+        }
+
         if (update.$set?.['contactRequests.$.status']) {
           const requestId = query.contactRequests.$elemMatch._id;
           const contactRequest = property.contactRequests.find((item) => (
@@ -389,6 +457,16 @@ function createTestApp() {
           ));
           contactRequest.status = update.$set['contactRequests.$.status'];
           contactRequest.updatedAt = update.$set['contactRequests.$.updatedAt'];
+          return property;
+        }
+
+        if (update.$set?.['visitRequests.$.status']) {
+          const requestId = query.visitRequests.$elemMatch._id;
+          const visitRequest = property.visitRequests.find((item) => (
+            String(item._id) === String(requestId)
+          ));
+          visitRequest.status = update.$set['visitRequests.$.status'];
+          visitRequest.updatedAt = update.$set['visitRequests.$.updatedAt'];
           return property;
         }
 
@@ -583,6 +661,40 @@ test('rejects unsupported image types for both upload endpoints', async () => {
 
   assert.equal(propertyResponse.status, 400);
   assert.equal(propertyResponse.body.message, 'Upload property photos as JPEG, PNG, or WebP files.');
+});
+
+test('stores profile photo uploads and serves their original image bytes', async () => {
+  const userId = '650000000000000000000073';
+  const imageBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const uploaded = await request(testApp)
+    .post('/api/users/me/profile-image')
+    .set('Authorization', 'Bearer managed-tenant-token')
+    .attach('profileImage', imageBytes, { filename: 'avatar.png', contentType: 'image/png' });
+
+  assert.equal(uploaded.status, 200);
+  assert.equal(uploaded.body.user.profileImage, `/api/profile-images/${userId}`);
+  assert.deepEqual(users.get(userId).profileImageData, imageBytes);
+
+  const served = await request(testApp).get(`/api/profile-images/${userId}`);
+  assert.equal(served.status, 200);
+  assert.equal(served.headers['content-type'], 'image/png');
+  assert.equal(served.headers['cache-control'], 'no-store');
+  assert.deepEqual(served.body, imageBytes);
+
+  const unchanged = await request(testApp)
+    .put('/api/users/me')
+    .set('Authorization', 'Bearer managed-tenant-token')
+    .send({ profileImage: `http://localhost:5000/api/profile-images/${userId}` });
+  assert.equal(unchanged.status, 200);
+  assert.deepEqual(users.get(userId).profileImageData, imageBytes);
+
+  const replaced = await request(testApp)
+    .put('/api/users/me')
+    .set('Authorization', 'Bearer managed-tenant-token')
+    .send({ profileImage: 'https://example.com/new-avatar.png' });
+  assert.equal(replaced.status, 200);
+  assert.equal(users.get(userId).profileImageData, null);
+  assert.equal(users.get(userId).profileImage, 'https://example.com/new-avatar.png');
 });
 
 test('collects owner NID submissions and exposes the verified badge only after admin approval', async () => {
@@ -849,6 +961,69 @@ test('admin workspace endpoints restrict access and allow moderation', async () 
     .send({ status: 'reviewed' });
   assert.equal(reviewed.status, 200);
   assert.equal(reports[0].status, 'reviewed');
+});
+
+test('admins can issue written warnings and view private user details with posts', async () => {
+  const userId = '650000000000000000000073';
+  properties.push({
+    _id: '650000000000000000000086',
+    ownerId: userId,
+    title: 'Tenant property post',
+    description: 'A complete property description.',
+    accommodation_type: 'Rental room',
+    city: 'Dhaka',
+    location: 'Dhanmondi',
+    address: '12 Lake Road',
+    monthly_rent: 25000,
+    number_of_rooms: 2,
+    bedrooms: 1,
+    bathrooms: 1,
+    status: 'Available',
+    facilities: ['Wi-Fi'],
+    images: [],
+    createdAt: new Date(),
+  });
+  marketplaceItems.push({
+    _id: '650000000000000000000087',
+    sellerId: userId,
+    title: 'Used chair',
+    description: 'Wooden chair in good condition.',
+    price: 2500,
+    condition: 'Good',
+    location: 'Dhaka',
+    status: 'available',
+    images: [],
+    createdAt: new Date(),
+  });
+
+  const warningResponse = await request(testApp)
+    .post(`/api/admin/users/${userId}/warnings`)
+    .set('Authorization', 'Bearer signed-test-token')
+    .send({ reason: 'Please keep listings accurate and follow the platform rules.' });
+  assert.equal(warningResponse.status, 201);
+  assert.equal(warningResponse.body.warningCount, 1);
+  assert.equal(users.get(userId).warnings[0].reason, 'Please keep listings accurate and follow the platform rules.');
+  assert.equal(users.get(userId).notifications[0].type, 'admin-warning');
+
+  const detailsResponse = await request(testApp)
+    .get(`/api/admin/users/${userId}`)
+    .set('Authorization', 'Bearer signed-test-token');
+  assert.equal(detailsResponse.status, 200);
+  assert.equal(detailsResponse.body.user.email, 'managed@example.com');
+  assert.equal(detailsResponse.body.user.warnings[0].reason, 'Please keep listings accurate and follow the platform rules.');
+  assert.equal(detailsResponse.body.user.properties[0].title, 'Tenant property post');
+  assert.equal(detailsResponse.body.user.marketplacePosts[0].title, 'Used chair');
+  assert.equal(Object.hasOwn(detailsResponse.body.user, 'password'), false);
+
+  const userList = await request(testApp)
+    .get('/api/admin/users')
+    .set('Authorization', 'Bearer signed-test-token');
+  assert.equal(userList.body.users.find((user) => user.id === userId).warningCount, 1);
+
+  const forbiddenDetails = await request(testApp)
+    .get(`/api/admin/users/${userId}`)
+    .set('Authorization', 'Bearer tenant-test-token');
+  assert.equal(forbiddenDetails.status, 403);
 });
 
 test('creates an owner listing with verified email and an unrated default', async () => {
@@ -1401,4 +1576,89 @@ test('lets tenants request contact and owners decide with the listing identified
   assert.equal(tenantNotifications.body.notifications.length, 1);
   assert.equal(tenantNotifications.body.notifications[0].type, 'contact-request-decision');
   assert.equal(tenantNotifications.body.notifications[0].propertyTitle, 'Dhanmondi room');
+});
+
+test('lets tenants request a future property visit and receive the owner decision', async () => {
+  const propertyId = '650000000000000000000042';
+  properties.push({
+    _id: propertyId,
+    ownerId: 'owner-user',
+    title: 'Sunny apartment',
+    city: 'Dhaka',
+    location: 'Gulshan',
+    status: 'Available',
+    visitRequests: [],
+  });
+  const visitAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+  const invalidDate = await request(testApp)
+    .post(`/api/properties/${propertyId}/visit-requests`)
+    .set('Authorization', 'Bearer tenant-test-token')
+    .send({ visitAt: 'not-a-date' });
+  assert.equal(invalidDate.status, 400);
+
+  const pastDate = await request(testApp)
+    .post(`/api/properties/${propertyId}/visit-requests`)
+    .set('Authorization', 'Bearer tenant-test-token')
+    .send({ visitAt: new Date(Date.now() - 60 * 1000).toISOString() });
+  assert.equal(pastDate.status, 400);
+
+  const created = await request(testApp)
+    .post(`/api/properties/${propertyId}/visit-requests`)
+    .set('Authorization', 'Bearer tenant-test-token')
+    .send({ visitAt });
+  assert.equal(created.status, 201);
+  assert.equal(created.body.visitRequest.status, 'pending');
+  assert.equal(new Date(created.body.visitRequest.visitAt).toISOString(), visitAt);
+
+  const publicProperty = await request(testApp).get(`/api/properties/${propertyId}`);
+  assert.equal(publicProperty.status, 200);
+  assert.equal(Object.hasOwn(publicProperty.body.property, 'visitRequests'), false);
+
+  const ownerNotifications = await request(testApp)
+    .get('/api/users/me/notifications')
+    .set('Authorization', 'Bearer owner-test-token');
+  assert.equal(ownerNotifications.body.notifications[0].type, 'visit-request');
+  assert.equal(ownerNotifications.body.notifications[0].visitRequestId, created.body.visitRequest._id);
+  assert.equal(new Date(ownerNotifications.body.notifications[0].visitAt).toISOString(), visitAt);
+
+  const duplicate = await request(testApp)
+    .post(`/api/properties/${propertyId}/visit-requests`)
+    .set('Authorization', 'Bearer tenant-test-token')
+    .send({ visitAt });
+  assert.equal(duplicate.status, 409);
+
+  const ownerRequests = await request(testApp)
+    .get('/api/owner/visit-requests')
+    .set('Authorization', 'Bearer owner-test-token');
+  assert.equal(ownerRequests.status, 200);
+  assert.equal(ownerRequests.body.visitRequests.length, 1);
+  assert.equal(ownerRequests.body.visitRequests[0].requesterEmail, 'tenant@example.com');
+  assert.equal(new Date(ownerRequests.body.visitRequests[0].visitAt).toISOString(), visitAt);
+
+  const rejectedByTenant = await request(testApp)
+    .put(`/api/owner/visit-requests/${created.body.visitRequest._id}`)
+    .set('Authorization', 'Bearer tenant-test-token')
+    .send({ status: 'accepted' });
+  assert.equal(rejectedByTenant.status, 403);
+
+  const decision = await request(testApp)
+    .put(`/api/owner/visit-requests/${created.body.visitRequest._id}`)
+    .set('Authorization', 'Bearer owner-test-token')
+    .send({ status: 'accepted' });
+  assert.equal(decision.status, 200);
+  assert.equal(decision.body.visitRequest.status, 'accepted');
+
+  const tenantRequest = await request(testApp)
+    .get(`/api/properties/${propertyId}/visit-requests/mine`)
+    .set('Authorization', 'Bearer tenant-test-token');
+  assert.equal(tenantRequest.status, 200);
+  assert.equal(tenantRequest.body.visitRequest.status, 'accepted');
+
+  const tenantNotifications = await request(testApp)
+    .get('/api/users/me/notifications')
+    .set('Authorization', 'Bearer tenant-test-token');
+  assert.equal(tenantNotifications.body.notifications[0].type, 'visit-request-decision');
+  assert.equal(tenantNotifications.body.notifications[0].visitRequestId, created.body.visitRequest._id);
+  assert.equal(new Date(tenantNotifications.body.notifications[0].visitAt).toISOString(), visitAt);
 });

@@ -5,6 +5,9 @@ import { getNotifications, markNotificationRead } from '../../utils/notification
 import { getStoredUser } from '../../utils/authStorage';
 
 function notificationHref(notification) {
+  if (notification.type === 'admin-warning') {
+    return getStoredUser()?.role === 'owner' ? '/owner/profile' : '/tenant/dashboard';
+  }
   if (notification.marketplaceItemId) {
     if (notification.type === 'marketplace-offer') {
       return `/marketplace/my-listings#listing-${notification.marketplaceItemId}`;
@@ -21,10 +24,25 @@ function notificationHref(notification) {
   if (notification.type === 'contact-request-decision') {
     return `/properties/${notification.propertyId}#contact-request`;
   }
+  if (notification.type === 'visit-request') return '/owner/visit-requests';
+  if (notification.type === 'visit-request-decision') {
+    return `/properties/${notification.propertyId}#visit-request`;
+  }
   const anchor = notification.replyId
     ? `reply-${notification.replyId}`
     : `comment-${notification.commentId}`;
   return `/properties/${notification.propertyId}#${anchor}`;
+}
+
+function formatNotificationMessage(notification) {
+  if (!notification.visitAt) return notification.message;
+  const visitAt = new Date(notification.visitAt);
+  if (Number.isNaN(visitAt.getTime())) return notification.message;
+  const formattedVisitAt = new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(visitAt);
+  return `${notification.message} · ${formattedVisitAt}`;
 }
 
 function NotificationMenu() {
@@ -112,7 +130,7 @@ function NotificationMenu() {
                   onClick={() => handleNotificationClick(notification)}
                 >
                   <span className="owner-notification-item-title">{notification.title}</span>
-                  <span className="owner-notification-item-message">{notification.message}</span>
+                  <span className="owner-notification-item-message">{formatNotificationMessage(notification)}</span>
                   <time dateTime={notification.createdAt}>{new Date(notification.createdAt).toLocaleString()}</time>
                 </Link>
               ))}

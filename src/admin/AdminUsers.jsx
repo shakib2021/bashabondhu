@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getAdminUsers, updateAdminUserStatus } from '../utils/adminApi';
+import { Link } from 'react-router-dom';
+import { getAdminUsers, updateAdminUserStatus, warnAdminUser } from '../utils/adminApi';
 
 function AdminUsers() {
   const [users, setUsers] = useState([]);
@@ -8,6 +9,8 @@ function AdminUsers() {
   const [status, setStatus] = useState('loading');
   const [errorMessage, setErrorMessage] = useState('');
   const [busyUserId, setBusyUserId] = useState('');
+  const [warningTargetId, setWarningTargetId] = useState('');
+  const [warningText, setWarningText] = useState('');
 
   useEffect(() => {
     let isMounted = true;
@@ -57,12 +60,34 @@ function AdminUsers() {
     }
   };
 
+  const handleWarn = async (event, user) => {
+    event.preventDefault();
+    const reason = warningText.trim();
+    if (!reason) return;
+    setBusyUserId(user.id);
+    setErrorMessage('');
+    try {
+      const result = await warnAdminUser(user.id, reason);
+      setUsers((items) => items.map((item) => (
+        item.id === user.id
+          ? { ...item, warningCount: result.warningCount }
+          : item
+      )));
+      setWarningTargetId('');
+      setWarningText('');
+    } catch (error) {
+      setErrorMessage(error.message || 'Could not send this warning.');
+    } finally {
+      setBusyUserId('');
+    }
+  };
+
   return (
     <>
       <section className="admin-page-heading">
         <span className="admin-page-eyebrow">ACCOUNT MANAGEMENT</span>
         <h1>Users</h1>
-        <p>Search owner and tenant accounts, and suspend or reactivate access when needed.</p>
+        <p>Review accounts, issue written warnings, and suspend or reactivate access when needed.</p>
       </section>
       <div className="admin-toolbar">
         <input
@@ -88,31 +113,68 @@ function AdminUsers() {
           <div className="admin-table-wrap">
             <table className="admin-table">
               <thead>
-                <tr><th>User</th><th>Role</th><th>Verification</th><th>Account</th><th>Joined</th><th>Action</th></tr>
+                <tr><th>User</th><th>Role</th><th>Verification</th><th>Warnings</th><th>Account</th><th>Joined</th><th>Actions</th></tr>
               </thead>
               <tbody>
                 {filteredUsers.map((user) => (
                   <tr key={user.id}>
                     <td>
-                      <span className="admin-table-primary">{user.fullName || 'Member'}</span>
-                      <span className="admin-table-secondary">{user.email}{user.phone ? ` · ${user.phone}` : ''}</span>
+                      <Link className="admin-user-detail-link admin-table-primary" to={`/admin/users/${encodeURIComponent(user.id)}`}>
+                        {user.fullName || 'Member'}
+                      </Link>
+                      <Link className="admin-user-detail-link admin-table-secondary" to={`/admin/users/${encodeURIComponent(user.id)}`}>
+                        {user.email}
+                      </Link>
+                      {user.phone && <span className="admin-table-secondary">{user.phone}</span>}
                     </td>
                     <td>{user.role}</td>
                     <td>{user.role === 'owner' && user.isVerified ? 'Verified owner' : '—'}</td>
+                    <td>{user.warningCount || 0}</td>
                     <td><span className={`admin-status-pill is-${user.accountStatus}`}>{user.accountStatus}</span></td>
                     <td>{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '—'}</td>
                     <td>
                       {user.role === 'admin' ? <span className="admin-table-secondary">Protected</span> : (
-                        <button
-                          className={`admin-table-action${user.accountStatus === 'active' ? ' is-danger' : ''}`}
-                          type="button"
-                          disabled={busyUserId === user.id}
-                          onClick={() => handleStatusChange(user)}
-                        >
-                          {busyUserId === user.id
-                            ? 'Saving…'
-                            : user.accountStatus === 'active' ? 'Suspend' : 'Reactivate'}
-                        </button>
+                        <>
+                          <div className="admin-user-actions">
+                            <button
+                              className="admin-table-action"
+                              type="button"
+                              disabled={busyUserId === user.id}
+                              onClick={() => {
+                                setWarningTargetId((current) => current === user.id ? '' : user.id);
+                                setWarningText('');
+                              }}
+                            >
+                              Give warning
+                            </button>
+                            <button
+                              className={`admin-table-action${user.accountStatus === 'active' ? ' is-danger' : ''}`}
+                              type="button"
+                              disabled={busyUserId === user.id}
+                              onClick={() => handleStatusChange(user)}
+                            >
+                              {busyUserId === user.id
+                                ? 'Saving…'
+                                : user.accountStatus === 'active' ? 'Suspend' : 'Reactivate'}
+                            </button>
+                          </div>
+                          {warningTargetId === user.id && (
+                            <form className="admin-warning-form" onSubmit={(event) => handleWarn(event, user)}>
+                              <label htmlFor={`warning-${user.id}`}>Warning message</label>
+                              <textarea
+                                id={`warning-${user.id}`}
+                                value={warningText}
+                                onChange={(event) => setWarningText(event.target.value)}
+                                maxLength={300}
+                                rows={3}
+                                required
+                              />
+                              <button className="admin-table-action" type="submit" disabled={busyUserId === user.id || !warningText.trim()}>
+                                {busyUserId === user.id ? 'Sending…' : 'Send warning'}
+                              </button>
+                            </form>
+                          )}
+                        </>
                       )}
                     </td>
                   </tr>

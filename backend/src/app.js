@@ -42,6 +42,15 @@ function getMarketplaceImageUrls(item) {
   });
 }
 
+function isStoredProfileImageUrl(value, userId) {
+  if (typeof value !== 'string') return false;
+  try {
+    return new URL(value, 'http://localhost').pathname === `/api/profile-images/${userId}`;
+  } catch {
+    return false;
+  }
+}
+
 function serializeMarketplaceItem(item, includeOffers = false) {
   const serialized = {
     ...item,
@@ -132,6 +141,16 @@ function createApp({
     fileSizeErrorMessage: 'Each item photo must be 5 MB or smaller, with up to 6 photos.',
     uploadErrorMessage: 'Upload up to 6 item photos.',
     invalidTypeMessage: 'Upload item photos as JPEG, PNG, or WebP files.',
+  });
+  const parseProfileImageUpload = createImageUploadMiddleware({
+    maxFileSize: 2 * 1024 * 1024,
+    maxFiles: 1,
+    maxFields: 0,
+    maxFieldSize: 1024,
+    fieldName: 'profileImage',
+    fileSizeErrorMessage: 'Profile photos must be 2 MB or smaller.',
+    uploadErrorMessage: 'Upload one profile photo.',
+    invalidTypeMessage: 'Upload a profile photo as a JPEG, PNG, or WebP file.',
   });
   const saveNotification = async (recipientId, actor, notification, recipientRole) => {
     if (!recipientId || String(recipientId) === String(actor._id)) {
@@ -350,6 +369,28 @@ function createApp({
         user: serializeUser(user),
         token: tokenSigner(String(user._id), jwtSecret),
       });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.get('/api/profile-images/:userId', async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.userId)) {
+        return res.status(404).json({ success: false, message: 'Profile image not found.' });
+      }
+
+      const user = await UserModel.findById(req.params.userId)
+        .select('+profileImageData +profileImageMimeType')
+        .lean();
+      if (!user?.profileImageData || !user.profileImageMimeType) {
+        return res.status(404).json({ success: false, message: 'Profile image not found.' });
+      }
+
+      res.set('Content-Type', user.profileImageMimeType);
+      res.set('Cache-Control', 'no-store');
+      res.set('X-Content-Type-Options', 'nosniff');
+      return res.send(user.profileImageData);
     } catch (error) {
       return next(error);
     }
@@ -737,11 +778,147 @@ function createApp({
           phone: user.phone || '',
           role: user.role,
           accountStatus: user.accountStatus,
+          warningCount: Number.isInteger(user.warningCount) ? user.warningCount : (user.warnings || []).length,
           isVerified: user.role === 'owner'
             ? user.ownerVerificationStatus === 'approved'
             : user.isVerified === true,
           createdAt: user.createdAt,
         })),
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.get('/api/admin/users/:userId', authenticate, async (req, res, next) => {
+    try {
+      const admin = await UserModel.findById(req.userId);
+      if (!admin || admin.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      if (admin.role !== 'admin') {
+        return res.status(403).json({ success: false, message: 'Only admins can view private user details.' });
+      }
+      if (!mongoose.isValidObjectId(req.params.userId)) {
+        return res.status(404).json({ success: false, message: 'User not found.' });
+      }
+
+      const user = await UserModel.findById(req.params.userId);
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found.' });
+      }
+
+      const [properties, marketplaceItems] = await Promise.all([
+        AccommodationModel.find({ ownerId: user._id }).sort({ createdAt: -1 }).limit(100).lean(),
+        MarketplaceItemModel.find({ sellerId: user._id }).sort({ createdAt: -1 }).limit(100).lean(),
+      ]);
+
+      return res.json({
+        success: true,
+        user: {
+          id: String(user._id),
+          fullName: user.fullName,
+          email: user.email,
+          profileImage: user.profileImage || '',
+          phone: user.phone || '',
+          address: user.address || '',
+          occupation: user.occupation || '',
+          role: user.role,
+          authProvider: user.authProvider,
+          accountStatus: user.accountStatus,
+          isVerified: user.role === 'owner'
+            ? user.ownerVerificationStatus === 'approved'
+            : user.isVerified === true,
+          ownerVerificationStatus: user.ownerVerificationStatus || 'unverified',
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+          warnings: (user.warnings || []).map((warning) => ({
+            id: String(warning._id),
+            reason: warning.reason,
+            createdAt: warning.createdAt,
+          })),
+          warningCount: Number.isInteger(user.warningCount) ? user.warningCount : (user.warnings || []).length,
+          properties: properties.map((property) => ({
+            id: String(property._id),
+            title: property.title,
+            description: property.description || '',
+            accommodationType: property.accommodation_type,
+            city: property.city,
+            location: property.location,
+            address: property.address || '',
+            monthlyRent: property.monthly_rent,
+            rooms: property.number_of_rooms,
+            bedrooms: property.bedrooms,
+            bathrooms: property.bathrooms,
+            facilities: property.facilities || [],
+            images: getPropertyImageUrls(property),
+            status: property.status,
+            moderationStatus: property.moderationStatus || 'approved',
+            createdAt: property.createdAt,
+          })),
+          marketplacePosts: marketplaceItems.map((item) => ({
+            id: String(item._id),
+            title: item.title,
+            description: item.description || '',
+            price: item.price,
+            condition: item.condition,
+            location: item.location,
+            status: item.status,
+            moderationStatus: item.moderationStatus || 'approved',
+            images: getMarketplaceImageUrls(item),
+            createdAt: item.createdAt,
+          })),
+        },
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.post('/api/admin/users/:userId/warnings', authenticate, async (req, res, next) => {
+    try {
+      const admin = await UserModel.findById(req.userId);
+      if (!admin || admin.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      if (admin.role !== 'admin') {
+        return res.status(403).json({ success: false, message: 'Only admins can warn users.' });
+      }
+      if (!mongoose.isValidObjectId(req.params.userId)) {
+        return res.status(404).json({ success: false, message: 'User not found.' });
+      }
+
+      const reason = typeof req.body.reason === 'string' ? req.body.reason.trim() : '';
+      if (!reason || reason.length > 300) {
+        return res.status(400).json({ success: false, message: 'Provide a warning message of up to 300 characters.' });
+      }
+
+      const user = await UserModel.findOneAndUpdate(
+        { _id: req.params.userId, role: { $ne: 'admin' } },
+        {
+          $push: { warnings: { $each: [{ reason, adminId: admin._id }], $slice: -50 } },
+          $inc: { warningCount: 1 },
+        },
+        { new: true, runValidators: true },
+      );
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found or cannot be warned.' });
+      }
+
+      const warning = user.warnings[user.warnings.length - 1];
+      await saveNotification(user._id, admin, {
+        type: 'admin-warning',
+        title: 'Account warning from BashaBondhu',
+        message: reason,
+      }, user.role);
+      return res.status(201).json({
+        success: true,
+        warning: {
+          id: String(warning._id),
+          reason: warning.reason,
+          createdAt: warning.createdAt,
+        },
+        warningCount: user.warningCount,
       });
     } catch (error) {
       return next(error);
@@ -877,11 +1054,19 @@ function createApp({
 
   app.put('/api/users/me', authenticate, async (req, res, next) => {
     try {
-      const allowedFields = ['fullName', 'profileImage', 'phone', 'address', 'occupation'];
+      const allowedFields = ['fullName', 'phone', 'address', 'occupation'];
       const updates = {};
       for (const field of allowedFields) {
         if (Object.prototype.hasOwnProperty.call(req.body, field)) {
           updates[field] = req.body[field] === '' ? null : req.body[field];
+        }
+      }
+      if (Object.prototype.hasOwnProperty.call(req.body, 'profileImage')) {
+        const profileImage = req.body.profileImage === '' ? null : req.body.profileImage;
+        if (!isStoredProfileImageUrl(profileImage, req.userId)) {
+          updates.profileImage = profileImage;
+          updates.profileImageData = null;
+          updates.profileImageMimeType = null;
         }
       }
 
@@ -898,6 +1083,38 @@ function createApp({
         { new: true, runValidators: true },
       );
 
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+
+      return res.json({ success: true, user: serializeUser(user) });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.post('/api/users/me/profile-image', authenticate, parseProfileImageUpload, async (req, res, next) => {
+    try {
+      const [image] = req.files || [];
+      if (!image) {
+        return res.status(400).json({ success: false, message: 'Choose a profile photo to upload.' });
+      }
+      if (!isValidImage(image)) {
+        return res.status(400).json({ success: false, message: 'The profile photo contents do not match its file type.' });
+      }
+
+      const profileImage = `/api/profile-images/${req.userId}`;
+      const user = await UserModel.findOneAndUpdate(
+        { _id: req.userId, accountStatus: 'active' },
+        {
+          $set: {
+            profileImage,
+            profileImageData: image.buffer,
+            profileImageMimeType: image.mimetype,
+          },
+        },
+        { new: true, runValidators: true },
+      );
       if (!user) {
         return res.status(404).json({ success: false, message: 'User not found or inactive.' });
       }
@@ -1007,6 +1224,8 @@ function createApp({
           commentId: notification.commentId,
           replyId: notification.replyId,
           contactRequestId: notification.contactRequestId,
+          visitRequestId: notification.visitRequestId,
+          visitAt: notification.visitAt,
           isRead: notification.isRead,
           createdAt: notification.createdAt,
         }));
@@ -1134,6 +1353,106 @@ function createApp({
           status: contactRequest.status,
           requesterName: contactRequest.requesterName,
           requesterEmail: contactRequest.requesterEmail,
+          property: { _id: property._id, title: property.title },
+        },
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.get('/api/owner/visit-requests', authenticate, async (req, res, next) => {
+    try {
+      const user = await UserModel.findById(req.userId);
+      if (!user || user.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      if (user.role !== 'owner') {
+        return res.status(403).json({ success: false, message: 'Only property owners can review visit requests.' });
+      }
+
+      const properties = await AccommodationModel.find({
+        ownerId: user._id,
+        'visitRequests.0': { $exists: true },
+      }).sort({ createdAt: -1 }).lean();
+      const visitRequests = properties.flatMap((property) => (
+        (property.visitRequests || []).map((visitRequest) => ({
+          _id: visitRequest._id,
+          status: visitRequest.status,
+          requesterName: visitRequest.requesterName,
+          requesterEmail: visitRequest.requesterEmail,
+          visitAt: visitRequest.visitAt,
+          createdAt: visitRequest.createdAt,
+          updatedAt: visitRequest.updatedAt,
+          property: {
+            _id: property._id,
+            title: property.title,
+            city: property.city,
+            location: property.location,
+          },
+        }))
+      ));
+
+      return res.json({ success: true, visitRequests });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.put('/api/owner/visit-requests/:requestId', authenticate, async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.requestId)) {
+        return res.status(404).json({ success: false, message: 'Visit request not found.' });
+      }
+      const user = await UserModel.findById(req.userId);
+      if (!user || user.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      if (user.role !== 'owner') {
+        return res.status(403).json({ success: false, message: 'Only property owners can review visit requests.' });
+      }
+
+      const { status } = req.body;
+      if (!['accepted', 'rejected'].includes(status)) {
+        return res.status(400).json({ success: false, message: 'Choose accept or reject for this request.' });
+      }
+
+      const property = await AccommodationModel.findOneAndUpdate(
+        {
+          ownerId: user._id,
+          visitRequests: {
+            $elemMatch: { _id: req.params.requestId, status: 'pending' },
+          },
+        },
+        {
+          $set: {
+            'visitRequests.$.status': status,
+            'visitRequests.$.updatedAt': new Date(),
+          },
+        },
+        { new: true, runValidators: true },
+      );
+      if (!property) {
+        return res.status(404).json({ success: false, message: 'Pending visit request not found.' });
+      }
+
+      const visitRequest = property.visitRequests.find((item) => String(item._id) === req.params.requestId);
+      await saveNotification(visitRequest.userId, user, {
+        type: 'visit-request-decision',
+        title: `Your visit request was ${status}`,
+        message: `${property.title}: the owner ${status} your visit request.`,
+        propertyId: property._id,
+        propertyTitle: property.title,
+        visitRequestId: visitRequest._id,
+        visitAt: visitRequest.visitAt,
+      }, 'tenant');
+
+      return res.json({
+        success: true,
+        visitRequest: {
+          _id: visitRequest._id,
+          status: visitRequest.status,
+          visitAt: visitRequest.visitAt,
           property: { _id: property._id, title: property.title },
         },
       });
@@ -1725,6 +2044,128 @@ function createApp({
           status: contactRequest.status,
           createdAt: contactRequest.createdAt,
           updatedAt: contactRequest.updatedAt,
+          propertyId: property._id,
+          propertyTitle: property.title,
+        } : null,
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.post('/api/properties/:propertyId/visit-requests', authenticate, async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.propertyId)) {
+        return res.status(404).json({ success: false, message: 'Property not found.' });
+      }
+      const user = await UserModel.findById(req.userId);
+      if (!user || user.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      if (user.role !== 'tenant') {
+        return res.status(403).json({ success: false, message: 'Only tenants can request a property visit.' });
+      }
+
+      const visitAt = typeof req.body.visitAt === 'string' ? new Date(req.body.visitAt) : null;
+      if (!visitAt || Number.isNaN(visitAt.getTime()) || visitAt.getTime() <= Date.now()) {
+        return res.status(400).json({ success: false, message: 'Choose a future date and time for the visit.' });
+      }
+
+      const existingProperty = await AccommodationModel.findById(req.params.propertyId).lean();
+      if (!existingProperty || existingProperty.status !== 'Available') {
+        return res.status(404).json({ success: false, message: 'Property not found.' });
+      }
+      if (String(existingProperty.ownerId) === String(user._id)) {
+        return res.status(403).json({ success: false, message: 'You cannot request a visit for your own listing.' });
+      }
+      if ((existingProperty.visitRequests || []).some((item) => (
+        String(item.userId) === String(user._id) && item.status === 'pending'
+      ))) {
+        return res.status(409).json({ success: false, message: 'You already have a pending visit request for this listing.' });
+      }
+
+      const property = await AccommodationModel.findOneAndUpdate(
+        {
+          _id: req.params.propertyId,
+          status: 'Available',
+          ownerId: { $ne: user._id },
+          visitRequests: { $not: { $elemMatch: { userId: user._id, status: 'pending' } } },
+        },
+        {
+          $push: {
+            visitRequests: {
+              $each: [{
+                userId: user._id,
+                requesterName: user.fullName,
+                requesterEmail: user.email,
+                visitAt,
+              }],
+              $slice: -200,
+            },
+          },
+        },
+        { new: true, runValidators: true },
+      );
+      if (!property) {
+        return res.status(409).json({ success: false, message: 'A pending visit request already exists or the listing changed.' });
+      }
+
+      const visitRequest = property.visitRequests[property.visitRequests.length - 1];
+      await notifyPropertyOwner(property, user, {
+        type: 'visit-request',
+        title: `${user.fullName} requested a property visit`,
+        message: `${property.title}: a tenant requested a visit.`,
+        propertyId: property._id,
+        propertyTitle: property.title,
+        visitRequestId: visitRequest._id,
+        visitAt,
+      });
+
+      return res.status(201).json({
+        success: true,
+        visitRequest: {
+          _id: visitRequest._id,
+          status: visitRequest.status,
+          visitAt: visitRequest.visitAt,
+          createdAt: visitRequest.createdAt,
+          propertyId: property._id,
+          propertyTitle: property.title,
+        },
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.get('/api/properties/:propertyId/visit-requests/mine', authenticate, async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.propertyId)) {
+        return res.status(404).json({ success: false, message: 'Property not found.' });
+      }
+      const user = await UserModel.findById(req.userId);
+      if (!user || user.accountStatus !== 'active') {
+        return res.status(404).json({ success: false, message: 'User not found or inactive.' });
+      }
+      if (user.role !== 'tenant') {
+        return res.status(403).json({ success: false, message: 'Only tenants can view their visit requests.' });
+      }
+
+      const property = await AccommodationModel.findById(req.params.propertyId).lean();
+      if (!property) {
+        return res.status(404).json({ success: false, message: 'Property not found.' });
+      }
+      const visitRequest = [...(property.visitRequests || [])]
+        .filter((item) => String(item.userId) === String(user._id))
+        .sort((first, second) => new Date(second.createdAt) - new Date(first.createdAt))[0];
+
+      return res.json({
+        success: true,
+        visitRequest: visitRequest ? {
+          _id: visitRequest._id,
+          status: visitRequest.status,
+          visitAt: visitRequest.visitAt,
+          createdAt: visitRequest.createdAt,
+          updatedAt: visitRequest.updatedAt,
           propertyId: property._id,
           propertyTitle: property.title,
         } : null,

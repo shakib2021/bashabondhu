@@ -36,7 +36,9 @@ The backend also uses the Strategy pattern in `src/utils/imageValidation.js`: it
 - `GET /api/admin/owner-verifications/:verificationId/documents/:side` — admins only; privately serves the `front` or `back` NID image with caching disabled.
 - `PATCH /api/admin/owner-verifications/:verificationId` — admins approve with `{ "decision": "approve" }` or reject with `{ "decision": "reject", "rejectionReason": "..." }`.
 - `GET /api/admin/summary` — admin dashboard counts for users, property posts, pending reports, and pending verifications.
-- `GET /api/admin/users` and `PATCH /api/admin/users/:userId/status` — admins can list accounts and suspend/reactivate non-admin users.
+- `GET /api/admin/users` and `GET /api/admin/users/:userId` — admins can view account summaries and private profile details, warning history, and property/marketplace posts.
+- `POST /api/admin/users/:userId/warnings` — admins can issue a written warning (up to 300 characters); users receive an in-app notification.
+- `PATCH /api/admin/users/:userId/status` — admins can suspend or reactivate non-admin accounts.
 - `GET /api/admin/posts` and `DELETE /api/admin/posts/:postId` — admins can list and permanently remove property posts.
 - `PATCH /api/admin/reports/:reportId` — admins mark a pending report `reviewed` or `dismissed`.
 - `POST /api/properties` — owners can create listings using JSON or multipart form data. Multipart requests send a `property` JSON field and up to 6 `images` files (JPEG, PNG, or WebP; up to 5 MB each and 12 MB combined).
@@ -48,6 +50,8 @@ The backend also uses the Strategy pattern in `src/utils/imageValidation.js`: it
 - `POST /api/properties/:propertyId/reports` — authenticated users can submit a report with a category and optional details.
 - `GET /api/admin/reports` — admins can review the latest 100 submitted property reports.
 - `GET /api/health` — health check.
+- `POST /api/properties/:propertyId/visit-requests` — tenants request a visit using a future date and time selected in their local timezone; `GET /api/properties/:propertyId/visit-requests/mine` returns the tenant's latest request and status.
+- `GET /api/owner/visit-requests` and `PUT /api/owner/visit-requests/:requestId` — owners review visit requests and accept or reject them. Both the owner and tenant receive in-app notifications for the request and decision.
 
 Successful login/registration responses include `{ "success": true, "user": {...}, "token": "..." }`. MongoDB remains the source of truth for account roles and profile details.
 

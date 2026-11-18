@@ -24,6 +24,16 @@ const contactRequestSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 });
 
+const visitRequestSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  requesterName: { type: String, required: true, trim: true, maxlength: 255 },
+  requesterEmail: { type: String, required: true, lowercase: true, trim: true, maxlength: 255 },
+  visitAt: { type: Date, required: true },
+  status: { type: String, enum: ['pending', 'accepted', 'rejected'], default: 'pending' },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
+});
+
 const accommodationSchema = new mongoose.Schema({
   title: { type: String, required: true, trim: true },
   description: { type: String, default: '' },
@@ -44,6 +54,7 @@ const accommodationSchema = new mongoose.Schema({
   ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   comments: { type: [commentSchema], default: [] },
   contactRequests: { type: [contactRequestSchema], default: [] },
+  visitRequests: { type: [visitRequestSchema], default: [] },
 }, { timestamps: true, collection: 'accopost' });
 
 const Accommodation = mongoose.model('Accommodation', accommodationSchema);

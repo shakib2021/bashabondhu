@@ -1,5 +1,6 @@
 import { getStoredUser } from './authStorage';
 import { requestApi } from './apiClient';
+import { normalizeProfileImageUrl } from './userApi';
 
 function getToken() {
   const session = getStoredUser();
@@ -19,6 +20,13 @@ export async function getAdminUsers() {
   return result.users;
 }
 
+export async function getAdminUserDetails(userId) {
+  const result = await requestApi(`/admin/users/${encodeURIComponent(userId)}`, { token: getToken() });
+  return result.user
+    ? { ...result.user, profileImage: normalizeProfileImageUrl(result.user.profileImage) }
+    : result.user;
+}
+
 export async function updateAdminUserStatus(userId, accountStatus) {
   const result = await requestApi(`/admin/users/${encodeURIComponent(userId)}/status`, {
     method: 'PATCH',
@@ -26,6 +34,15 @@ export async function updateAdminUserStatus(userId, accountStatus) {
     body: JSON.stringify({ accountStatus }),
   });
   return result.user;
+}
+
+export async function warnAdminUser(userId, reason) {
+  const result = await requestApi(`/admin/users/${encodeURIComponent(userId)}/warnings`, {
+    method: 'POST',
+    token: getToken(),
+    body: JSON.stringify({ reason }),
+  });
+  return result;
 }
 
 export async function getAdminPosts() {

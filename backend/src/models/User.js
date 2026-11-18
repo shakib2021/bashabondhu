@@ -3,7 +3,17 @@ const mongoose = require('mongoose');
 const notificationSchema = new mongoose.Schema({
   type: {
     type: String,
-    enum: ['comment', 'reply', 'contact-request', 'contact-request-decision', 'marketplace-offer', 'marketplace-offer-decision'],
+    enum: [
+      'comment',
+      'reply',
+      'contact-request',
+      'contact-request-decision',
+      'visit-request',
+      'visit-request-decision',
+      'admin-warning',
+      'marketplace-offer',
+      'marketplace-offer-decision',
+    ],
     required: true,
   },
   title: { type: String, required: true, maxlength: 160 },
@@ -15,7 +25,15 @@ const notificationSchema = new mongoose.Schema({
   commentId: { type: mongoose.Schema.Types.ObjectId, default: null },
   replyId: { type: mongoose.Schema.Types.ObjectId, default: null },
   contactRequestId: { type: mongoose.Schema.Types.ObjectId, default: null },
+  visitRequestId: { type: mongoose.Schema.Types.ObjectId, default: null },
+  visitAt: { type: Date, default: null },
   isRead: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now },
+});
+
+const warningSchema = new mongoose.Schema({
+  reason: { type: String, required: true, trim: true, maxlength: 300 },
+  adminId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   createdAt: { type: Date, default: Date.now },
 });
 
@@ -44,6 +62,12 @@ const userSchema = new mongoose.Schema({
     default: null,
     maxlength: 1000,
   },
+  profileImageData: { type: Buffer, select: false },
+  profileImageMimeType: {
+    type: String,
+    enum: ['image/jpeg', 'image/png', 'image/webp'],
+    select: false,
+  },
   phone: {
     type: String,
     default: null,
@@ -69,6 +93,8 @@ const userSchema = new mongoose.Schema({
     default: 'unverified',
   },
   notifications: { type: [notificationSchema], default: [] },
+  warnings: { type: [warningSchema], default: [] },
+  warningCount: { type: Number, default: 0, min: 0 },
   watchlist: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Accommodation' }], default: [] },
   role: {
     type: String,

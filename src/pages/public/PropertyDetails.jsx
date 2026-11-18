@@ -13,6 +13,7 @@ import {
   getPublicProperty,
 } from '../../utils/propertyApi';
 import { getStoredUser } from '../../utils/authStorage';
+import { createVisitRequest, getMyVisitRequest } from '../../utils/visitRequestApi';
 import './PropertyDetails.css';
 
 function formatDate(value) {
@@ -20,6 +21,13 @@ function formatDate(value) {
   return Number.isNaN(date.getTime())
     ? 'Recently'
     : new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(date);
+}
+
+function formatVisitTime(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? 'Invalid date'
+    : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
 
 function PropertyDetails() {
@@ -39,6 +47,10 @@ function PropertyDetails() {
   const [contactRequest, setContactRequest] = useState(null);
   const [contactRequestError, setContactRequestError] = useState('');
   const [isRequestingContact, setIsRequestingContact] = useState(false);
+  const [visitRequest, setVisitRequest] = useState(null);
+  const [visitRequestError, setVisitRequestError] = useState('');
+  const [isRequestingVisit, setIsRequestingVisit] = useState(false);
+  const [visitDateTime, setVisitDateTime] = useState('');
   const [ownerContact, setOwnerContact] = useState(null);
   const [ownerContactError, setOwnerContactError] = useState('');
   const [isLoadingOwnerContact, setIsLoadingOwnerContact] = useState(false);
@@ -81,6 +93,24 @@ function PropertyDetails() {
       isMounted = false;
     };
   }, [isTenant, propertyId]);
+
+  useEffect(() => {
+    if (!isTenant) return undefined;
+    let isMounted = true;
+    getMyVisitRequest(propertyId)
+      .then((request) => {
+        if (isMounted) {
+          setVisitRequest(request);
+          setVisitRequestError('');
+        }
+      })
+      .catch((error) => {
+        if (isMounted) setVisitRequestError(error.message || 'Could not load your visit request.');
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [isTenant, location.hash, propertyId]);
 
   useEffect(() => {
     if (!isTenant || contactRequest?.status !== 'accepted') {
@@ -171,6 +201,29 @@ function PropertyDetails() {
       setIsRequestingContact(false);
     }
   };
+
+  const handleVisitRequest = async (event) => {
+    event.preventDefault();
+    if (!visitDateTime) {
+      setVisitRequestError('Choose a date and time for your visit.');
+      return;
+    }
+
+    setIsRequestingVisit(true);
+    setVisitRequestError('');
+    try {
+      const request = await createVisitRequest(propertyId, new Date(visitDateTime).toISOString());
+      setVisitRequest(request);
+    } catch (error) {
+      setVisitRequestError(error.message || 'Could not request a property visit.');
+    } finally {
+      setIsRequestingVisit(false);
+    }
+  };
+
+  const minVisitDateTime = new Date(
+    Date.now() + 60000 - new Date().getTimezoneOffset() * 60000,
+  ).toISOString().slice(0, 16);
 
   const propertyImages = (property?.images || []).filter(
     (image) => typeof image === 'string' && image.length > 0,
@@ -478,6 +531,52 @@ function PropertyDetails() {
                     </>
                   )
                 )}
+                <section className="property-visit-request" id="visit-request" aria-labelledby="visit-request-title">
+                  <span className="property-detail-eyebrow" id="visit-request-title">REQUEST A VISIT</span>
+                  {property.status !== 'Available' ? (
+                    <p>This home is no longer available for visit requests.</p>
+                  ) : isTenant ? (
+                    <>
+                      <p>Choose a date and time that works for you. The owner will let you know if it’s accepted.</p>
+                      {visitRequest && (
+                        <div className={`contact-request-state${visitRequest.status === 'accepted' ? ' is-accepted' : ''}`}>
+                          <span>Visit {visitRequest.status}</span>
+                          <time dateTime={visitRequest.visitAt}>{formatVisitTime(visitRequest.visitAt)}</time>
+                        </div>
+                      )}
+                      {(!visitRequest || visitRequest.status === 'rejected') && (
+                        <form onSubmit={handleVisitRequest}>
+                          <label htmlFor="visit-date-time">Requested date and time</label>
+                          <input
+                            id="visit-date-time"
+                            type="datetime-local"
+                            min={minVisitDateTime}
+                            value={visitDateTime}
+                            onChange={(event) => setVisitDateTime(event.target.value)}
+                            required
+                          />
+                          <button
+                            className="property-action-button"
+                            type="submit"
+                            disabled={isRequestingVisit}
+                          >
+                            {isRequestingVisit ? 'Sending…' : visitRequest?.status === 'rejected' ? 'Request another visit' : 'Request visit'}
+                          </button>
+                        </form>
+                      )}
+                      {visitRequestError && <p className="property-comment-error" role="alert">{visitRequestError}</p>}
+                    </>
+                  ) : session?.token ? (
+                    <p>Sign in as a tenant to request a visit.</p>
+                  ) : (
+                    <>
+                      <p>Sign in as a tenant to request a visit.</p>
+                      <Link className="property-action-link" to="/login" state={{ from: `${location.pathname}${location.search}#visit-request` }}>
+                        Sign in to request a visit
+                      </Link>
+                    </>
+                  )}
+                </section>
               </aside>
             </section>
           </>

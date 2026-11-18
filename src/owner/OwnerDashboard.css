@@ -932,6 +932,7 @@
 }
 
 .owner-request-person time,
+.owner-request-property time,
 .owner-request-property > span:last-child {
   color: #87938b;
   font-size: 9px;

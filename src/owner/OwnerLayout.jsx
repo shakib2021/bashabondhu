@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowRight, Heart, Home, LayoutGrid, LogOut, MessageSquare, Package, UserRound } from 'lucide-react';
+import { ArrowRight, CalendarDays, Heart, Home, LayoutGrid, LogOut, MessageSquare, Package, UserRound } from 'lucide-react';
 import NotificationMenu from '../components/common/NotificationMenu';
 import { clearUserProfile, getStoredUser } from '../utils/authStorage';
 import { getUserInfo } from '../utils/userApi';
@@ -137,6 +137,10 @@ function OwnerLayout() {
           <NavLink to="/owner/contact-requests" className={({ isActive }) => `owner-side-link${isActive ? ' is-active' : ''}`}>
             <span className="owner-nav-icon" aria-hidden="true"><MessageSquare /></span>
             Contact requests
+          </NavLink>
+          <NavLink to="/owner/visit-requests" className={({ isActive }) => `owner-side-link${isActive ? ' is-active' : ''}`}>
+            <span className="owner-nav-icon" aria-hidden="true"><CalendarDays /></span>
+            Visit requests
           </NavLink>
           <NavLink end to="/owner#watchlist" className={({ isActive }) => `owner-side-link${isActive ? ' is-active' : ''}`}>
             <span className="owner-nav-icon" aria-hidden="true"><Heart /></span>

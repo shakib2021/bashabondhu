@@ -13,6 +13,7 @@ import {
   getPublicProperty,
 } from './utils/propertyApi';
 import { getNotifications } from './utils/notificationApi';
+import { getMyVisitRequest } from './utils/visitRequestApi';
 
 vi.mock('embla-carousel-react', async () => {
   const React = await import('react');
@@ -81,12 +82,20 @@ vi.mock('./utils/notificationApi', () => ({
   markNotificationRead: vi.fn().mockResolvedValue({ isRead: true }),
 }));
 
+vi.mock('./utils/visitRequestApi', () => ({
+  createVisitRequest: vi.fn(),
+  getMyVisitRequest: vi.fn().mockResolvedValue(null),
+  getOwnerVisitRequests: vi.fn().mockResolvedValue([]),
+  updateVisitRequest: vi.fn(),
+}));
+
 beforeEach(() => {
   localStorage.removeItem('bashabondhu.user');
   window.history.replaceState({}, '', '/');
   getPublicProperties.mockImplementation(() => new Promise(() => {}));
   getPublicProperty.mockImplementation(() => new Promise(() => {}));
   getMyContactRequest.mockResolvedValue(null);
+  getMyVisitRequest.mockResolvedValue(null);
   getOwnerContactDetails.mockResolvedValue(null);
   getNotifications.mockResolvedValue([]);
 });
