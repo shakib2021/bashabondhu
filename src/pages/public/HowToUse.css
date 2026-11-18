@@ -1,0 +1,250 @@
+.how-to-use-page {
+  min-height: 100vh;
+  background: #fffefa;
+}
+
+.how-to-use-page main {
+  width: min(1160px, calc(100% - 64px));
+  margin: 0 auto;
+}
+
+.how-to-use-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(280px, .75fr);
+  align-items: center;
+  gap: 64px;
+  min-height: 460px;
+  padding: 48px 0;
+}
+
+.how-to-use-eyebrow,
+.how-to-use-cta p {
+  color: #268262;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.how-to-use-hero h1 {
+  max-width: 760px;
+  margin: 12px 0 18px;
+  color: #20352c;
+  font-size: clamp(44px, 7vw, 72px);
+  line-height: .98;
+  letter-spacing: -.055em;
+}
+
+.how-to-use-intro {
+  max-width: 580px;
+  margin: 0 0 28px;
+  color: #68756e;
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.how-to-use-primary,
+.how-to-use-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 48px;
+  padding: 0 20px;
+  border-radius: 10px;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.how-to-use-primary {
+  background: #1e7658;
+  color: #fff;
+}
+
+.how-to-use-primary svg {
+  width: 17px;
+  height: 17px;
+}
+
+.how-to-use-secondary {
+  border: 1px solid #dce7dd;
+  color: #28533f;
+}
+
+.how-to-use-hero-card {
+  position: relative;
+  display: grid;
+  width: 280px;
+  height: 280px;
+  margin: auto;
+  place-items: center;
+  border: 1px solid #dfe9df;
+  border-radius: 50%;
+  background: #f5f9f2;
+  box-shadow: 0 30px 70px rgb(39 92 66 / 10%);
+}
+
+.how-to-use-hero-card > span:first-child {
+  display: grid;
+  width: 104px;
+  height: 104px;
+  place-items: center;
+  border-radius: 28px;
+  background: #1e7658;
+  color: #fff;
+  box-shadow: 0 18px 35px rgb(30 118 88 / 22%);
+}
+
+.how-to-use-hero-card svg {
+  width: 48px;
+  height: 48px;
+}
+
+.how-to-use-pulse {
+  position: absolute;
+  inset: 38px;
+  border: 1px solid rgb(40 130 98 / 20%);
+  border-radius: 50%;
+}
+
+.how-to-use-pulse.two {
+  inset: 18px;
+  opacity: .5;
+}
+
+.how-to-use-steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  padding: 24px 0 70px;
+}
+
+.how-to-use-step {
+  min-height: 260px;
+  padding: 24px;
+  border: 1px solid #e2e9df;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgb(40 70 56 / 5%);
+}
+
+.how-to-use-step-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 42px;
+}
+
+.how-to-use-step-number {
+  color: #91a097;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.how-to-use-step-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 14px;
+  background: #edf5ed;
+  color: #267858;
+}
+
+.how-to-use-step-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.how-to-use-step h2 {
+  margin: 0 0 10px;
+  color: #20352c;
+  font-size: 19px;
+}
+
+.how-to-use-step p {
+  margin: 0;
+  color: #758078;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.how-to-use-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  margin-bottom: 70px;
+  padding: 34px 40px;
+  border-radius: 22px;
+  background: #eef5ec;
+}
+
+.how-to-use-cta p {
+  margin: 0 0 8px;
+}
+
+.how-to-use-cta h2 {
+  margin: 0;
+  color: #20352c;
+  font-size: 28px;
+  letter-spacing: -.03em;
+}
+
+.how-to-use-cta-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .how-to-use-page main {
+    width: min(100% - 32px, 1160px);
+  }
+
+  .how-to-use-hero {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    padding: 44px 0;
+  }
+
+  .how-to-use-hero-card {
+    width: 220px;
+    height: 220px;
+  }
+
+  .how-to-use-steps {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .how-to-use-hero h1 {
+    font-size: 42px;
+  }
+
+  .how-to-use-steps,
+  .how-to-use-cta {
+    grid-template-columns: 1fr;
+  }
+
+  .how-to-use-steps {
+    display: grid;
+  }
+
+  .how-to-use-cta {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 28px 22px;
+  }
+
+  .how-to-use-cta-actions {
+    width: 100%;
+  }
+
+  .how-to-use-cta-actions a {
+    flex: 1;
+  }
+}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import useEmblaCarousel from 'embla-carousel-react';
-import { ArrowDownRight, ArrowLeft, ArrowRight, Check, House, MapPin, Pause, Play, ShoppingBag } from 'lucide-react';
+import { ArrowDownRight, ArrowLeft, ArrowRight, Check, MapPin, Pause, Play, ShoppingBag } from 'lucide-react';
 import Navbar from '../../components/common/Navbar';
 import './Home.css';
 import Footer from '../../components/common/Footer';
@@ -12,6 +12,7 @@ import ReportListingButton from '../../components/common/ReportListingButton';
 import WatchlistButton from '../../components/common/WatchlistButton';
 import { getMyWatchlist } from '../../utils/watchlistApi';
 import { getMarketplaceItems } from '../../utils/marketplaceApi';
+import AppLoader from '../../components/common/AppLoader';
 
 const POPULAR_RATING = 4.5;
 const NEW_LISTING_WINDOW = 2 * 24 * 60 * 60 * 1000;
@@ -26,14 +27,11 @@ const genderSearchTerms = {
 
 function HomeLoader({ compact = false }) {
   return (
-    <div className={`home-loader${compact ? ' home-loader-compact' : ''}`} role="status">
-      <span className="home-loader-mark" aria-hidden="true"><House /></span>
-      <span className="home-loader-copy">
-        <strong>Finding your next place</strong>
-        <span>Gathering fresh listings for you</span>
-      </span>
-      <span className="home-loader-dots" aria-hidden="true"><i /><i /><i /></span>
-    </div>
+    <AppLoader
+      compact={compact}
+      className="home-loader"
+      label="Finding your next place"
+    />
   );
 }
 

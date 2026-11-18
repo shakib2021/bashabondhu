@@ -93,6 +93,7 @@ function Navbar() {
             <Link className={`nav-link${isHomeSection ? ' active' : ''}`} to="/#home" onClick={closeMenu}>Home</Link>
             <Link className={`nav-link${isListingsSection ? ' active' : ''}`} to="/#homes" onClick={closeMenu}>Find a home</Link>
             <Link className={`nav-link${location.pathname.startsWith('/marketplace') ? ' active' : ''}`} to="/marketplace" onClick={closeMenu}>Buy &amp; sell</Link>
+            <Link className={`nav-link${location.pathname === '/how-to-use' ? ' active' : ''}`} to="/how-to-use" onClick={closeMenu}>How to use</Link>
           </div>
           <form className="nav-search-form" role="search" onSubmit={handleSearch}>
             <input

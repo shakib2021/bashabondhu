@@ -5,6 +5,7 @@ import NotificationMenu from '../components/common/NotificationMenu';
 import WatchlistPanel from '../components/common/WatchlistPanel';
 import ProfileIdentityCard from '../components/common/ProfileIdentityCard';
 import ProfileDetailsGrid from '../components/common/ProfileDetailsGrid';
+import AppLoader from '../components/common/AppLoader';
 import { clearUserProfile, getStoredUser } from '../utils/authStorage';
 import { getUserInfo, updateUserInfo } from '../utils/userApi';
 import '../owner/OwnerDashboard.css';
@@ -225,8 +226,7 @@ function TenantDashboard() {
 
         {status === 'loading' && (
           <section className="tenant-profile-card tenant-feedback" aria-live="polite">
-            <span className="tenant-loader" aria-hidden="true" />
-            <p>Loading your profile…</p>
+            <AppLoader label="Loading your profile…" />
           </section>
         )}
 

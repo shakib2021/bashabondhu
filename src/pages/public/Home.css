@@ -315,10 +315,38 @@
 .home-loader {
   display: flex;
   min-height: 450px;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 18px;
+  gap: 6px;
   padding: 28px;
+}
+
+.home-loader .app-loader-image {
+  width: 170px;
+  height: 170px;
+}
+
+.home-loader .app-loader-label {
+  color: #20352c;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.home-loader-compact {
+  flex-direction: row;
+  min-height: 150px;
+  gap: 10px;
+  margin: 0;
+}
+
+.home-loader-compact .app-loader-image {
+  width: 82px;
+  height: 82px;
+}
+
+.home-loader-compact .app-loader-label {
+  font-size: 14px;
 }
 
 .home-loader-mark {

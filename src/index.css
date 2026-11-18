@@ -21,3 +21,41 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+.app-loader {
+  display: flex;
+  min-height: 180px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.app-loader-image {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+  animation: app-loader-spin 900ms steps(12, end) infinite;
+}
+
+@keyframes app-loader-spin {
+  to { transform: rotate(360deg); }
+}
+
+.app-loader-label {
+  color: #748078;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.app-loader-compact {
+  min-height: 150px;
+  flex-direction: row;
+  gap: 10px;
+}
+
+.app-loader-compact .app-loader-image {
+  width: 72px;
+  height: 72px;
+}

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowRight, CalendarDays, Heart, Home, LayoutGrid, LogOut, MessageSquare, Package, UserRound } from 'lucide-react';
 import NotificationMenu from '../components/common/NotificationMenu';
+import AppLoader from '../components/common/AppLoader';
 import { clearUserProfile, getStoredUser } from '../utils/authStorage';
 import { getUserInfo } from '../utils/userApi';
 import './OwnerDashboard.css';
@@ -69,8 +70,7 @@ function OwnerLayout() {
   if (status === 'loading') {
     return (
       <main className="owner-state-page" aria-live="polite">
-        <span className="owner-loader" aria-hidden="true" />
-        <p>Loading your owner workspace…</p>
+        <AppLoader label="Loading your owner workspace…" />
       </main>
     );
   }

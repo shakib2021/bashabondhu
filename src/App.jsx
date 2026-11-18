@@ -24,6 +24,7 @@ import AdminReports from './admin/AdminReports';
 import AdminUsers from './admin/AdminUsers';
 import AdminUserDetails from './admin/AdminUserDetails';
 import AdminProfile from './admin/AdminProfile';
+import HowToUse from './pages/public/HowToUse';
 
 function App() {
   return (
@@ -38,6 +39,7 @@ function App() {
           <Route path="/marketplace/my-listings" element={<MyMarketplace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/how-to-use" element={<HowToUse />} />
           <Route path="/tenant/dashboard" element={<TenantDashboard />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminOverview />} />

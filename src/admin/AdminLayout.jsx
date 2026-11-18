@@ -3,6 +3,7 @@ import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react
 import { FileText, Flag, Home, LayoutDashboard, LogOut, ShieldCheck, UserRound, Users } from 'lucide-react';
 import { clearUserProfile, getStoredUser } from '../utils/authStorage';
 import { getUserInfo } from '../utils/userApi';
+import AppLoader from '../components/common/AppLoader';
 import '../owner/OwnerDashboard.css';
 import './AdminDashboard.css';
 
@@ -69,8 +70,7 @@ function AdminLayout() {
   if (status === 'loading') {
     return (
       <main className="owner-state-page" aria-live="polite">
-        <span className="owner-loader" aria-hidden="true" />
-        <p>Loading your admin workspace…</p>
+        <AppLoader label="Loading your admin workspace…" />
       </main>
     );
   }
