@@ -1,11 +1,12 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { vi } from 'vitest';
 import { useState } from 'react';
 import { MemoryRouter, Outlet, Route, Routes } from 'react-router-dom';
 import { updateUserInfo } from '../utils/userApi';
 import AdminProfile from './AdminProfile';
 
-jest.mock('../utils/userApi', () => ({
-  updateUserInfo: jest.fn(),
+vi.mock('../utils/userApi', () => ({
+  updateUserInfo: vi.fn(),
 }));
 
 const profile = {
@@ -25,7 +26,7 @@ function AdminProfileHarness() {
 }
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 test('lets an administrator update their profile details', async () => {

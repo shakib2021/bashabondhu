@@ -95,6 +95,9 @@ function ListingArtwork({
       {property.isVerified === true && (
         <span className="listing-verified-corner"><Check aria-hidden="true" /> Verified</span>
       )}
+      {(property.isVerified === true || property.owner?.isVerified === true) && (
+        <span className="listing-owner-verification">Verified owner</span>
+      )}
       {badges.length > 0 && (
         <div className="listing-tags" aria-label="Listing highlights">
           {badges.map((badge) => <span className={`listing-tag listing-tag-${badge.toLowerCase().replace(' ', '-')}`} key={badge}>{badge}</span>)}

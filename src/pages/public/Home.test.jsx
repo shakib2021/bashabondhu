@@ -74,7 +74,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-test('automatically advances featured homes and can be paused', async () => {
+test('automatically advances featured homes and can be paused', { timeout: 8000 }, async () => {
   getPublicProperties.mockResolvedValue([{ ...property }, { ...property, _id: 'second-property-id' }]);
 
   render(

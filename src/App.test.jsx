@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import App from './App';
 import { getFirebaseAuth } from './firebase';
@@ -437,9 +437,11 @@ test('opens a home card, posts a comment, and replies beneath it', async () => {
   });
   fireEvent.click(screen.getByRole('button', { name: 'Post reply' }));
 
+  await waitFor(() => {
+    expect(createPropertyCommentReply).toHaveBeenCalledWith('property-42', 'comment-1', 'Yes, it is available.');
+  });
   const commentThread = screen.getByText('Is this still available?').closest('.property-comment-thread');
   expect(await within(commentThread).findByText('Yes, it is available.')).toBeInTheDocument();
-  expect(createPropertyCommentReply).toHaveBeenCalledWith('property-42', 'comment-1', 'Yes, it is available.');
 });
 
 test('lets a tenant request contact from a property details page', async () => {

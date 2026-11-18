@@ -1,21 +1,22 @@
 import { render, screen } from '@testing-library/react';
+import { vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { getStoredUser } from '../utils/authStorage';
 import { getUserInfo } from '../utils/userApi';
 import TenantDashboard from './TenantDashboard';
 
-jest.mock('../utils/authStorage', () => ({
-  clearUserProfile: jest.fn(),
-  getStoredUser: jest.fn(),
+vi.mock('../utils/authStorage', () => ({
+  clearUserProfile: vi.fn(),
+  getStoredUser: vi.fn(),
 }));
 
-jest.mock('../utils/userApi', () => ({
-  getUserInfo: jest.fn(),
-  updateUserInfo: jest.fn(),
+vi.mock('../utils/userApi', () => ({
+  getUserInfo: vi.fn(),
+  updateUserInfo: vi.fn(),
 }));
 
-jest.mock('../components/common/NotificationMenu', () => () => <div />);
-jest.mock('../components/common/WatchlistPanel', () => () => <div />);
+vi.mock('../components/common/NotificationMenu', () => ({ default: () => <div /> }));
+vi.mock('../components/common/WatchlistPanel', () => ({ default: () => <div /> }));
 
 beforeEach(() => {
   getStoredUser.mockReturnValue({ email: 'tenant@example.com', name: 'Tara Tenant' });

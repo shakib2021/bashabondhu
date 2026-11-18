@@ -16,6 +16,30 @@ The API listens on port 5000 by default. Set the frontend's `REACT_APP_API_URL` 
 
 If Node.js reports `querySrv ECONNREFUSED`, set optional `MONGODB_DNS_SERVERS` to a DNS resolver reachable from the machine running the backend (comma-separated for multiple resolvers). If DNS then resolves but MongoDB reports a server-selection timeout, add the backend machine's public IP under Atlas **Network Access** and confirm outbound access to MongoDB on port 27017.
 
+## Deploying the API to Render
+
+The frontend is hosted on Netlify, so Render only needs to run this directory.
+
+Either commit `render.yaml` (repo root) and create the service as a Blueprint, or configure an existing Web Service manually:
+
+- Root Directory: `backend`
+- Build Command: `npm install`
+- Start Command: `npm start`
+- Health Check Path: `/api/health`
+
+Then set these environment variables in the Render dashboard:
+
+- `MONGODB_URI`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `FIREBASE_PROJECT_ID`
+- `CLIENT_ORIGIN` — the Netlify origin, for example `https://your-site.netlify.app`. Comma-separate multiple origins. Without it, browser requests fail CORS.
+- `FIREBASE_SERVICE_ACCOUNT` — the full service-account JSON on one line. Render has no secret-file mount, so the `GOOGLE_APPLICATION_CREDENTIALS` file path used locally does not work there. `FIREBASE_SERVICE_ACCOUNT_BASE64` is also accepted.
+
+Do not set `PORT`; Render injects it and `server.js` reads `process.env.PORT`. Do not set `NODE_ENV=production` on this service.
+
+On the Netlify side, set `REACT_APP_API_URL` to the Render URL (`https://<service>.onrender.com`) and rebuild, because Create React App inlines environment variables at build time.
+
+Free instances sleep after about 15 minutes of inactivity, so the first request afterwards takes roughly 50 seconds. Upgrade to the Starter plan for an always-on API.
+
+
 ## Design patterns
 
 The backend uses the Factory pattern in `src/middleware/imageUpload.js` to build Multer middleware for different image-upload routes. NID verification and property photos share the same image-type validation and upload-error handling while retaining their route-specific file limits and response messages. The app also exposes `createApp` as a factory so tests can inject model and authentication dependencies.

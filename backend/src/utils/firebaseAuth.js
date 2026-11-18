@@ -1,5 +1,40 @@
-const { applicationDefault, getApp, getApps, initializeApp } = require('firebase-admin/app');
+const { applicationDefault, cert, getApp, getApps, initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
+
+function readServiceAccountFromEnv() {
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
+  const encoded = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
+
+  if (typeof raw === 'string' && raw.trim()) return raw;
+  if (typeof encoded === 'string' && encoded.trim()) {
+    return Buffer.from(encoded, 'base64').toString('utf8');
+  }
+  return '';
+}
+
+function resolveFirebaseCredential() {
+  const serialized = readServiceAccountFromEnv();
+
+  if (!serialized) {
+    return applicationDefault();
+  }
+
+  let serviceAccount;
+  try {
+    serviceAccount = JSON.parse(serialized);
+  } catch {
+    throw new Error('FIREBASE_SERVICE_ACCOUNT must contain valid service account JSON.');
+  }
+
+  if (!serviceAccount || typeof serviceAccount.private_key !== 'string') {
+    throw new Error('FIREBASE_SERVICE_ACCOUNT is missing the private_key field.');
+  }
+
+  // Hosting dashboards often flatten newlines in the private key into literal "\n".
+  serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+
+  return cert(serviceAccount);
+}
 
 async function getVerifiedFirebaseUser(idToken) {
   if (typeof idToken !== 'string' || !idToken.trim()) {
@@ -16,7 +51,7 @@ async function getVerifiedFirebaseUser(idToken) {
   const firebaseApp = getApps().length > 0
     ? getApp()
     : initializeApp({
-      credential: applicationDefault(),
+      credential: resolveFirebaseCredential(),
       projectId,
     });
 

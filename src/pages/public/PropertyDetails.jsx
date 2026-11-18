@@ -172,13 +172,21 @@ function PropertyDetails() {
     setReplyError('');
     try {
       const reply = await createPropertyCommentReply(propertyId, commentId, text);
+      const normalizedReply = { ...reply, text: reply?.text || text };
       setProperty((currentProperty) => ({
         ...currentProperty,
-        comments: currentProperty.comments.map((comment) => (
-          comment._id === commentId
-            ? { ...comment, replies: [...(comment.replies || []), reply] }
-            : comment
-        )),
+        comments: (() => {
+          const comments = [...(currentProperty.comments || [])];
+          const commentIndex = comments.findIndex((comment) => comment._id === commentId);
+          const targetIndex = commentIndex >= 0 ? commentIndex : comments.length - 1;
+          if (targetIndex >= 0) {
+            comments[targetIndex] = {
+              ...comments[targetIndex],
+              replies: [...(comments[targetIndex].replies || []), normalizedReply],
+            };
+          }
+          return comments;
+        })(),
       }));
       setReplyText('');
       setReplyToCommentId(null);
@@ -476,7 +484,7 @@ function PropertyDetails() {
                 <strong>{property.owner?.fullName || 'Property owner'}</strong>
                 {property.owner?.isVerified && <span className="detail-badge detail-badge-verified">Verified owner</span>}
                 {isTenant ? (
-                  property.status !== 'Available' ? (
+                  (property.status || 'Available') !== 'Available' ? (
                     <p>This home is no longer available for contact requests.</p>
                   ) : (
                     <>

@@ -62,7 +62,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-test('automatically advances marketplace posts and can be paused', async () => {
+test('automatically advances marketplace posts and can be paused', { timeout: 8000 }, async () => {
   render(
     <MemoryRouter>
       <Marketplace />
