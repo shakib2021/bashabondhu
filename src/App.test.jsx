@@ -14,6 +14,15 @@ import {
 } from './utils/propertyApi';
 import { getNotifications } from './utils/notificationApi';
 import { getMyVisitRequest } from './utils/visitRequestApi';
+import { getChatMessages, getMyChats, sendChatMessage } from './utils/chatApi';
+
+vi.mock('socket.io-client', () => ({
+  io: vi.fn(() => {
+    const socket = { on: vi.fn(), disconnect: vi.fn() };
+    socket.on.mockReturnValue(socket);
+    return socket;
+  }),
+}));
 
 vi.mock('embla-carousel-react', async () => {
   const React = await import('react');
@@ -82,6 +91,12 @@ vi.mock('./utils/notificationApi', () => ({
   markNotificationRead: vi.fn().mockResolvedValue({ isRead: true }),
 }));
 
+vi.mock('./utils/chatApi', () => ({
+  getChatMessages: vi.fn().mockResolvedValue([]),
+  getMyChats: vi.fn().mockResolvedValue([]),
+  sendChatMessage: vi.fn(),
+}));
+
 vi.mock('./utils/visitRequestApi', () => ({
   createVisitRequest: vi.fn(),
   getMyVisitRequest: vi.fn().mockResolvedValue(null),
@@ -97,6 +112,8 @@ beforeEach(() => {
   getMyContactRequest.mockResolvedValue(null);
   getMyVisitRequest.mockResolvedValue(null);
   getOwnerContactDetails.mockResolvedValue(null);
+  getMyChats.mockResolvedValue([]);
+  getChatMessages.mockResolvedValue([]);
   getNotifications.mockResolvedValue([]);
 });
 
@@ -444,39 +461,27 @@ test('opens a home card, posts a comment, and replies beneath it', async () => {
   expect(await within(commentThread).findByText('Yes, it is available.')).toBeInTheDocument();
 });
 
-test('lets a tenant request contact from a property details page', async () => {
-  const property = {
-    _id: 'property-contact',
-    title: 'Quiet rental house',
-    accommodation_type: 'Rental house',
-    location: 'Uttara',
-    city: 'Dhaka',
-    monthly_rent: 35000,
-    number_of_rooms: 3,
-    bedrooms: 2,
-    bathrooms: 2,
-    description: 'A family home.',
-    facilities: [],
-    images: [],
-    gender: 'any',
-    rating: 0,
-    createdAt: new Date().toISOString(),
-    owner: { fullName: 'Rafi Owner', isVerified: false },
-    comments: [],
-  };
-  getPublicProperties.mockResolvedValueOnce([property]);
-  getPublicProperty.mockResolvedValueOnce(property);
-  getMyContactRequest.mockResolvedValueOnce(null);
+test('lets a tenant request contact from a property chat', async () => {
   createContactRequest.mockResolvedValueOnce({ status: 'pending' });
+  getMyChats.mockResolvedValue([{
+    id: 'conversation-contact',
+    listingType: 'property',
+    listingId: 'property-contact',
+    listingTitle: 'Quiet rental house',
+    otherParticipant: { id: 'owner-contact', fullName: 'Rafi Owner' },
+    lastMessage: 'Hello',
+    unreadCount: 0,
+  }]);
   localStorage.setItem('bashabondhu.user', JSON.stringify({
+    id: 'tenant-contact',
     email: 'tenant@example.com',
     token: 'signed-token',
     role: 'tenant',
   }));
+  window.history.replaceState({}, '', '/messages?property=property-contact');
 
   render(<App />);
 
-  fireEvent.click(await within(document.getElementById('homes')).findByRole('link', { name: 'View Quiet rental house' }));
   expect(await screen.findByRole('button', { name: 'Request contact' })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Request contact' }));
 
@@ -485,27 +490,15 @@ test('lets a tenant request contact from a property details page', async () => {
 });
 
 test('shows owner phone, email, and occupation after contact request acceptance', async () => {
-  const property = {
-    _id: 'property-accepted-contact',
-    title: 'Garden apartment',
-    accommodation_type: 'Rental house',
-    location: 'Uttara',
-    city: 'Dhaka',
-    monthly_rent: 42000,
-    number_of_rooms: 3,
-    bedrooms: 2,
-    bathrooms: 2,
-    description: 'A quiet place.',
-    facilities: [],
-    images: [],
-    gender: 'any',
-    rating: 0,
-    createdAt: new Date().toISOString(),
-    owner: { fullName: 'Rafi Owner', isVerified: false },
-    comments: [],
-  };
-  getPublicProperties.mockResolvedValueOnce([property]);
-  getPublicProperty.mockResolvedValueOnce(property);
+  getMyChats.mockResolvedValue([{
+    id: 'conversation-accepted-contact',
+    listingType: 'property',
+    listingId: 'property-accepted-contact',
+    listingTitle: 'Garden apartment',
+    otherParticipant: { id: 'owner-accepted', fullName: 'Rafi Owner' },
+    lastMessage: 'Hello',
+    unreadCount: 0,
+  }]);
   getMyContactRequest.mockResolvedValueOnce({ status: 'accepted' });
   getOwnerContactDetails.mockResolvedValueOnce({
     fullName: 'Rafi Owner',
@@ -514,15 +507,19 @@ test('shows owner phone, email, and occupation after contact request acceptance'
     email: 'rafi@example.com',
   });
   localStorage.setItem('bashabondhu.user', JSON.stringify({
+    id: 'tenant-accepted',
     email: 'tenant@example.com',
     token: 'signed-token',
     role: 'tenant',
   }));
+  window.history.replaceState({}, '', '/messages?property=property-accepted-contact');
 
   render(<App />);
 
-  fireEvent.click(await within(document.getElementById('homes')).findByRole('link', { name: 'View Garden apartment' }));
-  expect(await screen.findByText('OWNER CONTACT')).toBeInTheDocument();
+  expect(await screen.findByRole('link', { name: 'rafi@example.com' })).toHaveAttribute(
+    'href',
+    'mailto:rafi@example.com',
+  );
   expect(screen.getByText('Architect')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: '+8801712345678' })).toHaveAttribute('href', 'tel:+8801712345678');
   expect(screen.getByRole('link', { name: 'rafi@example.com' })).toHaveAttribute('href', 'mailto:rafi@example.com');

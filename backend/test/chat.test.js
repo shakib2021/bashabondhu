@@ -154,6 +154,17 @@ function auth(token) {
 }
 
 test('starts private property and marketplace chats, tracks unread messages, and restricts access', async () => {
+  const socketEvents = [];
+  app.set('io', {
+    to(room) {
+      return {
+        emit(eventName, payload) {
+          socketEvents.push({ room, eventName, payload });
+        },
+      };
+    },
+  });
+
   const startResponse = await request(app)
     .post('/api/chats/start')
     .set(auth('tenant-token'))
@@ -163,6 +174,13 @@ test('starts private property and marketplace chats, tracks unread messages, and
   assert.equal(startResponse.body.conversation.listingTitle, property.title);
   assert.equal(startResponse.body.message.text, 'Is the apartment still available?');
   assert.equal(users.get(ownerId).notifications[0].type, 'chat-message');
+  assert.equal(socketEvents.length, 2);
+  assert.deepEqual(
+    socketEvents.map((event) => event.room).sort(),
+    [`user:${ownerId}`, `user:${tenantId}`].sort(),
+  );
+  assert.equal(socketEvents[0].eventName, 'chat:new-message');
+  assert.equal(socketEvents[0].payload.message.text, 'Is the apartment still available?');
   const notificationsResponse = await request(app)
     .get('/api/users/me/notifications')
     .set(auth('owner-token'));
@@ -185,6 +203,7 @@ test('starts private property and marketplace chats, tracks unread messages, and
     .send({ text: 'Yes, it is available.' });
   assert.equal(replyResponse.status, 201);
   assert.equal(users.get(tenantId).notifications[0].type, 'chat-message');
+  assert.equal(socketEvents.length, 4);
 
   const unauthorizedResponse = await request(app)
     .get(`/api/chats/${conversationId}/messages`)

@@ -5,16 +5,12 @@ import Navbar from '../../components/common/Navbar';
 import Footer from '../../components/common/Footer';
 import '../../components/common/footer.css';
 import {
-  createContactRequest,
   createPropertyComment,
   createPropertyCommentReply,
-  getMyContactRequest,
-  getOwnerContactDetails,
   getPublicProperty,
 } from '../../utils/propertyApi';
 import { getStoredUser } from '../../utils/authStorage';
 import ChatComposer from '../../components/common/ChatComposer';
-import { createVisitRequest, getMyVisitRequest } from '../../utils/visitRequestApi';
 import './PropertyDetails.css';
 
 function formatDate(value) {
@@ -22,13 +18,6 @@ function formatDate(value) {
   return Number.isNaN(date.getTime())
     ? 'Recently'
     : new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(date);
-}
-
-function formatVisitTime(value) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? 'Invalid date'
-    : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
 
 function PropertyDetails() {
@@ -45,18 +34,7 @@ function PropertyDetails() {
   const [replyText, setReplyText] = useState('');
   const [replyError, setReplyError] = useState('');
   const [isPostingReply, setIsPostingReply] = useState(false);
-  const [contactRequest, setContactRequest] = useState(null);
-  const [contactRequestError, setContactRequestError] = useState('');
-  const [isRequestingContact, setIsRequestingContact] = useState(false);
-  const [visitRequest, setVisitRequest] = useState(null);
-  const [visitRequestError, setVisitRequestError] = useState('');
-  const [isRequestingVisit, setIsRequestingVisit] = useState(false);
-  const [visitDateTime, setVisitDateTime] = useState('');
-  const [ownerContact, setOwnerContact] = useState(null);
-  const [ownerContactError, setOwnerContactError] = useState('');
-  const [isLoadingOwnerContact, setIsLoadingOwnerContact] = useState(false);
   const session = getStoredUser();
-  const isTenant = session?.token && (session.role || session.accountType) === 'tenant';
 
   useEffect(() => {
     let isMounted = true;
@@ -81,61 +59,6 @@ function PropertyDetails() {
       isMounted = false;
     };
   }, [propertyId]);
-
-  useEffect(() => {
-    if (!isTenant) return undefined;
-    let isMounted = true;
-    getMyContactRequest(propertyId)
-      .then((request) => {
-        if (isMounted) setContactRequest(request);
-      })
-      .catch(() => {});
-    return () => {
-      isMounted = false;
-    };
-  }, [isTenant, propertyId]);
-
-  useEffect(() => {
-    if (!isTenant) return undefined;
-    let isMounted = true;
-    getMyVisitRequest(propertyId)
-      .then((request) => {
-        if (isMounted) {
-          setVisitRequest(request);
-          setVisitRequestError('');
-        }
-      })
-      .catch((error) => {
-        if (isMounted) setVisitRequestError(error.message || 'Could not load your visit request.');
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, [isTenant, location.hash, propertyId]);
-
-  useEffect(() => {
-    if (!isTenant || contactRequest?.status !== 'accepted') {
-      setOwnerContact(null);
-      setOwnerContactError('');
-      return undefined;
-    }
-
-    let isMounted = true;
-    setIsLoadingOwnerContact(true);
-    getOwnerContactDetails(propertyId)
-      .then((details) => {
-        if (isMounted) setOwnerContact(details);
-      })
-      .catch((error) => {
-        if (isMounted) setOwnerContactError(error.message || 'Could not load owner contact details.');
-      })
-      .finally(() => {
-        if (isMounted) setIsLoadingOwnerContact(false);
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, [contactRequest?.status, isTenant, propertyId]);
 
   const handleCommentSubmit = async (event) => {
     event.preventDefault();
@@ -197,42 +120,6 @@ function PropertyDetails() {
       setIsPostingReply(false);
     }
   };
-
-  const handleContactRequest = async () => {
-    setIsRequestingContact(true);
-    setContactRequestError('');
-    try {
-      const request = await createContactRequest(propertyId);
-      setContactRequest(request);
-    } catch (error) {
-      setContactRequestError(error.message || 'Could not request contact.');
-    } finally {
-      setIsRequestingContact(false);
-    }
-  };
-
-  const handleVisitRequest = async (event) => {
-    event.preventDefault();
-    if (!visitDateTime) {
-      setVisitRequestError('Choose a date and time for your visit.');
-      return;
-    }
-
-    setIsRequestingVisit(true);
-    setVisitRequestError('');
-    try {
-      const request = await createVisitRequest(propertyId, new Date(visitDateTime).toISOString());
-      setVisitRequest(request);
-    } catch (error) {
-      setVisitRequestError(error.message || 'Could not request a property visit.');
-    } finally {
-      setIsRequestingVisit(false);
-    }
-  };
-
-  const minVisitDateTime = new Date(
-    Date.now() + 60000 - new Date().getTimezoneOffset() * 60000,
-  ).toISOString().slice(0, 16);
 
   const propertyImages = (property?.images || []).filter(
     (image) => typeof image === 'string' && image.length > 0,
@@ -480,66 +367,10 @@ function PropertyDetails() {
                 </section>
               </div>
 
-              <aside className="property-owner-panel" id="contact-request">
+              <aside className="property-owner-panel">
                 <span className="property-detail-eyebrow">LISTED BY</span>
                 <strong>{property.owner?.fullName || 'Property owner'}</strong>
                 {property.owner?.isVerified && <span className="detail-badge detail-badge-verified">Verified owner</span>}
-                {isTenant ? (
-                  (property.status || 'Available') !== 'Available' ? (
-                    <p>This home is no longer available for contact requests.</p>
-                  ) : (
-                    <>
-                    <p>Send a request to ask the owner about this home.</p>
-                    {contactRequest?.status === 'pending' ? (
-                      <span className="contact-request-state">Request sent · awaiting response</span>
-                    ) : contactRequest?.status === 'accepted' ? (
-                      <>
-                        <span className="contact-request-state is-accepted">Request accepted</span>
-                        {isLoadingOwnerContact && <span className="owner-contact-loading">Loading owner details…</span>}
-                        {ownerContactError && <span className="property-comment-error" role="alert">{ownerContactError}</span>}
-                        {ownerContact && (
-                          <div className="owner-contact-details">
-                            <span className="property-detail-eyebrow">OWNER CONTACT</span>
-                            <strong>{ownerContact.fullName}</strong>
-                            <span>{ownerContact.occupation || 'Occupation not provided'}</span>
-                            {ownerContact.phone
-                              ? <a href={`tel:${ownerContact.phone}`}>{ownerContact.phone}</a>
-                              : <span>Phone not provided</span>}
-                            {ownerContact.email
-                              ? <a href={`mailto:${ownerContact.email}`}>{ownerContact.email}</a>
-                              : <span>Email not provided</span>}
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <button
-                        className="property-action-button"
-                        type="button"
-                        disabled={isRequestingContact}
-                        onClick={handleContactRequest}
-                      >
-                        {isRequestingContact ? 'Sending…' : contactRequest?.status === 'rejected' ? 'Request contact again' : 'Request contact'}
-                      </button>
-                    )}
-                    {contactRequestError && <p className="property-comment-error" role="alert">{contactRequestError}</p>}
-                    </>
-                  )
-                ) : session?.token ? (
-                  <p>{property.status === 'Available'
-                    ? 'Contact requests are available to tenant accounts.'
-                    : 'This home is no longer available for contact requests.'}</p>
-                ) : (
-                  property.status !== 'Available' ? (
-                    <p>This home is no longer available for contact requests.</p>
-                  ) : (
-                    <>
-                    <p>Sign in as a tenant to request contact about this home.</p>
-                    <Link className="property-action-link" to="/login" state={{ from: `${location.pathname}${location.search}#contact-request` }}>
-                      Sign in to request contact
-                    </Link>
-                    </>
-                  )
-                )}
                 {property.status === 'Available'
                   && (!session?.id || String(session.id) !== String(property.owner?.id))
                   && (
@@ -548,55 +379,9 @@ function PropertyDetails() {
                       listingId={propertyId}
                       listingTitle={property.title}
                       recipientName={property.owner?.fullName || 'the owner'}
-                      returnTo={`${location.pathname}${location.search}#contact-request`}
+                      returnTo={`${location.pathname}${location.search}`}
                     />
                   )}
-                <section className="property-visit-request" id="visit-request" aria-labelledby="visit-request-title">
-                  <span className="property-detail-eyebrow" id="visit-request-title">REQUEST A VISIT</span>
-                  {property.status !== 'Available' ? (
-                    <p>This home is no longer available for visit requests.</p>
-                  ) : isTenant ? (
-                    <>
-                      <p>Choose a date and time that works for you. The owner will let you know if it’s accepted.</p>
-                      {visitRequest && (
-                        <div className={`contact-request-state${visitRequest.status === 'accepted' ? ' is-accepted' : ''}`}>
-                          <span>Visit {visitRequest.status}</span>
-                          <time dateTime={visitRequest.visitAt}>{formatVisitTime(visitRequest.visitAt)}</time>
-                        </div>
-                      )}
-                      {(!visitRequest || visitRequest.status === 'rejected') && (
-                        <form onSubmit={handleVisitRequest}>
-                          <label htmlFor="visit-date-time">Requested date and time</label>
-                          <input
-                            id="visit-date-time"
-                            type="datetime-local"
-                            min={minVisitDateTime}
-                            value={visitDateTime}
-                            onChange={(event) => setVisitDateTime(event.target.value)}
-                            required
-                          />
-                          <button
-                            className="property-action-button"
-                            type="submit"
-                            disabled={isRequestingVisit}
-                          >
-                            {isRequestingVisit ? 'Sending…' : visitRequest?.status === 'rejected' ? 'Request another visit' : 'Request visit'}
-                          </button>
-                        </form>
-                      )}
-                      {visitRequestError && <p className="property-comment-error" role="alert">{visitRequestError}</p>}
-                    </>
-                  ) : session?.token ? (
-                    <p>Sign in as a tenant to request a visit.</p>
-                  ) : (
-                    <>
-                      <p>Sign in as a tenant to request a visit.</p>
-                      <Link className="property-action-link" to="/login" state={{ from: `${location.pathname}${location.search}#visit-request` }}>
-                        Sign in to request a visit
-                      </Link>
-                    </>
-                  )}
-                </section>
               </aside>
             </section>
           </>

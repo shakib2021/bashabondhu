@@ -25,11 +25,11 @@ function notificationHref(notification) {
   }
   if (notification.type === 'contact-request') return '/owner/contact-requests';
   if (notification.type === 'contact-request-decision') {
-    return `/properties/${notification.propertyId}#contact-request`;
+    return `/messages?property=${encodeURIComponent(notification.propertyId)}`;
   }
   if (notification.type === 'visit-request') return '/owner/visit-requests';
   if (notification.type === 'visit-request-decision') {
-    return `/properties/${notification.propertyId}#visit-request`;
+    return `/messages?property=${encodeURIComponent(notification.propertyId)}`;
   }
   const anchor = notification.replyId
     ? `reply-${notification.replyId}`

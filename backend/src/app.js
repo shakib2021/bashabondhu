@@ -84,6 +84,27 @@ function getImageBuffer(imageData) {
   return null;
 }
 
+function emitChatMessage(io, conversation, message) {
+  if (!io || !conversation?.participants) return;
+
+  const event = {
+    conversationId: String(conversation._id),
+    message: {
+      id: String(message._id),
+      senderId: String(message.senderId),
+      senderName: message.senderName,
+      text: message.text,
+      createdAt: message.createdAt,
+    },
+  };
+  const participantIds = new Set(conversation.participants.map(
+    (participant) => String(participant.userId),
+  ));
+  participantIds.forEach((userId) => {
+    io.to(`user:${userId}`).emit('chat:new-message', event);
+  });
+}
+
 function createApp({
   UserModel = User,
   AccommodationModel = Accommodation,
@@ -1380,6 +1401,7 @@ function createApp({
           ? { propertyId: listing._id, propertyTitle: listing.title }
           : { marketplaceItemId: listing._id, itemTitle: listing.title }),
       });
+      emitChatMessage(req.app.get('io'), conversation, message);
 
       return res.status(201).json({
         success: true,
@@ -1487,6 +1509,7 @@ function createApp({
           ? { propertyId: conversation.listingId, propertyTitle: conversation.listingTitle }
           : { marketplaceItemId: conversation.listingId, itemTitle: conversation.listingTitle }),
       });
+      emitChatMessage(req.app.get('io'), conversation, message);
       return res.status(201).json({
         success: true,
         message: {

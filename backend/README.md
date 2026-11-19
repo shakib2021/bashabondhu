@@ -74,6 +74,7 @@ The backend also uses the Strategy pattern in `src/utils/imageValidation.js`: it
 - `POST /api/chats/start` — starts or resumes a private conversation about an available property or marketplace listing and sends the first message.
 - `GET /api/chats` — returns the signed-in user's latest conversations and unread counts.
 - `GET /api/chats/:conversationId/messages` and `POST /api/chats/:conversationId/messages` — read and send messages in a conversation. Only its two participants can access it.
+- The API also serves authenticated Socket.IO connections for instant `chat:new-message` events. Socket.IO uses the same JWT bearer token, and messages are delivered only to the participants' private user rooms. REST remains the source of truth and the frontend falls back to periodic refreshes if the socket disconnects.
 - `POST /api/properties/:propertyId/reports` — authenticated users can submit a report with a category and optional details.
 - `GET /api/admin/reports` — admins can review the latest 100 submitted property reports.
 - `GET /api/health` — health check.
